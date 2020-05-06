@@ -4,6 +4,8 @@
 /*****************************************************************************/
 /**                              Includes                                   **/
 /*****************************************************************************/
+#include <memory.h> /* for memset */
+#include "pci_sniff.h"
 #include <stdio.h>
 #include <getopt.h>
 #include <string.h>
@@ -11,8 +13,10 @@
 #include <rdma/rdma_verbs.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <arpa/inet.h>
 #include "common.h"
-
+#define SA struct sockaddr
+#define MAX 80
 /*****************************************************************************/
 /**                                Namespace                                **/
 /*****************************************************************************/
@@ -146,7 +150,7 @@ static void* thread_menu(void* ptr){
  */
 static int rdma_send_rpc(parserContext_t* context){
     int result;
-    struct ibv_wc wc;
+    /*struct ibv_wc wc;
     result = rdma_post_send(context->rdmaMetadata.id,
                             NULL,
                             &(context->rpcMetadata),
@@ -167,9 +171,48 @@ static int rdma_send_rpc(parserContext_t* context){
             PARSER_DBG("Got send completion with status code %d\n", wc.status);
             return PARSER_ERROR;
         }
-    }
+    }*/
+    int sockfd, connfd;
+    struct sockaddr_in servaddr, cli;
 
-    return PARSER_SUCCESS;
+    // socket create and varification
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        printf("socket creation failed...\n");
+        exit(0);
+    }
+    else
+        printf("Socket successfully created..\n");
+    bzero(&servaddr, sizeof(servaddr));
+
+    // assign IP, PORT
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = inet_addr("192.168.0.1");
+    servaddr.sin_port = htons(21222);
+
+    // connect the client socket to server socket
+    if (connect(sockfd, (SA*)&servaddr, sizeof(servaddr)) != 0) {
+        printf("connection with the server failed...\n");
+        exit(0);
+    }
+    else
+        printf("connected to the server..\n");
+
+    char buff[MAX];
+    int n;
+    for (;;) {
+        bzero(buff, sizeof(buff));
+        write(sockfd, buff, sizeof(buff));
+        bzero(buff, sizeof(buff));
+        read(sockfd, buff, sizeof(buff));
+        printf("From Server : %s", buff);
+        if ((strncmp(buff, "exit", 4)) == 0) {
+            printf("Client Exit...\n");
+            break;
+        }
+    }
+    // close the socket
+    close(sockfd);     return PARSER_SUCCESS;
 }
 
 /**
@@ -261,9 +304,6 @@ static int main_loop(parserContext_t* context){
 static int client(parserContext_t* context){
     int result = PARSER_ERROR;
 
-    if(NULL == context){
-        return PARSER_ERROR;
-    }
 
     /*
      * Use rdma_getaddrinfo to determine if there is a path to the
@@ -356,11 +396,73 @@ static int client(parserContext_t* context){
     return result;
 }
 
+/* Default timeout can be changed using clnt_control() */
+static struct timeval TIMEOUT = { 25, 0 };
+
+int *
+start_1(void *argp, CLIENT *clnt)
+{
+    static int clnt_res;
+
+    memset((char *)&clnt_res, 0, sizeof(clnt_res));
+    if (clnt_call (clnt, START,
+                   (xdrproc_t) xdr_void, (caddr_t) argp,
+                   (xdrproc_t) xdr_long, (caddr_t) &clnt_res,
+                   TIMEOUT) != RPC_SUCCESS) {
+        return (NULL);
+    }
+    return (&clnt_res);
+}
+
+int *
+pause_1(void *argp, CLIENT *clnt)
+{
+    static int clnt_res;
+
+    memset((char *)&clnt_res, 0, sizeof(clnt_res));
+    if (clnt_call (clnt, PAUSE,
+                   (xdrproc_t) xdr_void, (caddr_t) argp,
+                   (xdrproc_t) xdr_long, (caddr_t) &clnt_res,
+                   TIMEOUT) != RPC_SUCCESS) {
+        return (NULL);
+    }
+    return (&clnt_res);
+}
+
+int *
+interval_1(int *argp, CLIENT *clnt)
+{
+    static int clnt_res;
+
+    memset((char *)&clnt_res, 0, sizeof(clnt_res));
+    if (clnt_call (clnt, INTERVAL,
+                   (xdrproc_t) xdr_int, (caddr_t) argp,
+                   (xdrproc_t) xdr_long, (caddr_t) &clnt_res,
+                   TIMEOUT) != RPC_SUCCESS) {
+        return (NULL);
+    }
+    return (&clnt_res);
+}
+
+int *
+stop_1(int *argp, CLIENT *clnt)
+{
+    static int clnt_res;
+
+    memset((char *)&clnt_res, 0, sizeof(clnt_res));
+    if (clnt_call (clnt, STOP,
+                   (xdrproc_t) xdr_int, (caddr_t) argp,
+                   (xdrproc_t) xdr_long, (caddr_t) &clnt_res,
+                   TIMEOUT) != RPC_SUCCESS) {
+        return (NULL);
+    }
+    return (&clnt_res);
+}
 /*****************************************************************************/
 /**                                  Main                                   **/
 /*****************************************************************************/
 int main(int argc, char **argv) {
-    int result = PARSER_ERROR;
+/*    int result = PARSER_ERROR;
     memset(&parserContext, 0, sizeof(parserContext_t));
 
     result = parse_args(argc, argv, &(parserContext.serverInfo));
@@ -371,6 +473,23 @@ int main(int argc, char **argv) {
     print_header(&(parserContext.serverInfo));
     result = client(&parserContext);
     return result;
+    */
+    CLIENT *cl;
+    int *result;
+    cl = clnt_create(argv[1], PCISNIFF, PCISNIFF_V1, "tcp");
+    if (cl == NULL) {
+        printf("error: could not connect to server.\n");
+        return 1;
+    }
+    result = start_1(NULL, cl);
+    if (result == NULL) {
+        printf("error: RPC failed!\n");
+        return 1;
+    }
+    printf("client: server returned value %d .\n", *result);
+
+    return 0;
+
 }
 
 

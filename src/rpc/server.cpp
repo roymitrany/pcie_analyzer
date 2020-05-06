@@ -4,13 +4,22 @@
 /*****************************************************************************/
 /**                              Includes                                   **/
 /*****************************************************************************/
+#include "pci_sniff.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <rpc/pmap_clnt.h>
+#include <string.h>
+#include <memory.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <getopt.h>
 #include <unistd.h>
 #include <string.h>
+#include <arpa/inet.h>
 #include <rdma/rdma_cma.h>
 #include <rdma/rdma_verbs.h>
 #include <infiniband/verbs.h>
+#include <rpc/rpc.h>
 #include "../parser/include/Exeptions.h"
 #include "common.h"
 
@@ -77,7 +86,45 @@ static int sendPacket(parserContext_t* context){
         return PARSER_ERROR;
     }
 
-    result = rdma_post_write(context->rdmaMetadata.id,
+    int sockfd;
+    //char buffer[MAXLINE];
+    //char *hello = "Hello from client";
+    struct sockaddr_in     servaddr;
+    //char str[INET_ADDRSTRLEN];
+
+
+
+    // Creating socket file descriptor
+    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+        perror("socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    memset(&servaddr, 0, sizeof(servaddr));
+
+    // Filling server information
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(21212);
+    //servaddr.sin_addr.s_addr = INADDR_ANY;
+    // store this IP address in sa:
+    inet_pton(AF_INET, "192.168.0.2", &(servaddr.sin_addr));
+
+    int n, len;
+
+    sendto(sockfd, (const char *)&(context->packetMetadata), context->stream->getCurrPacketSizeBytes(),
+           MSG_CONFIRM, (const struct sockaddr *) &servaddr,
+           sizeof(servaddr));
+    printf("Tusov message sent.\n");
+
+    /*n = recvfrom(sockfd, (char *)buffer, MAXLINE,
+                 MSG_WAITALL, (struct sockaddr *) &servaddr,
+                 &len);
+    buffer[n] = '\0';
+    printf("Server : %s\n", buffer);*/
+
+    close(sockfd);
+    return 0;
+    /*result = rdma_post_write(context->rdmaMetadata.id,
                              NULL,
                              &context->packetMetadata,
                              context->stream->getCurrPacketSizeBytes(),
@@ -86,10 +133,11 @@ static int sendPacket(parserContext_t* context){
                              context->rpcMetadata.connectionData.bufferAddr,
                              context->rpcMetadata.connectionData.bufferRkey);
 
-    if(result){
+
+     if(result){
         PARSER_DBG("Failed in rdma_post_write\n");
         return PARSER_ERROR;
-    }
+    }*/
 }
 
 /**
@@ -355,12 +403,88 @@ static int init_packet_stream(parserContext_t* context){
 
     return PARSER_SUCCESS;
 }
+int * start_1_svc(void *v, struct svc_req *){
+    int result = 0;
+    printf("Strating!!!!!!!\n");
+    return &result;
+}
 
+int * pause_1_svc(void *v, struct svc_req *){
+    printf("Pausing!!!!!!!\n");
+}
+
+int * interval_1_svc(int *interval, struct svc_req *){
+    printf("Changing interval to %d\n", *interval);
+}
+
+int * stop_1_svc(void *v, struct svc_req *){
+    printf("Stopping!!!!!!!\n");
+}
+
+static void
+pcisniff_1(struct svc_req *rqstp, register SVCXPRT *transp)
+{
+    union {
+        int interval_1_arg;
+        int stop_1_arg;
+    } argument;
+    char *result;
+    xdrproc_t _xdr_argument, _xdr_result;
+    char *(*local)(char *, struct svc_req *);
+
+    switch (rqstp->rq_proc) {
+        case NULLPROC:
+            (void) svc_sendreply (transp, (xdrproc_t) xdr_void, (char *)NULL);
+            return;
+
+        case START:
+            _xdr_argument = (xdrproc_t) xdr_void;
+            _xdr_result = (xdrproc_t) xdr_long;
+            local = (char *(*)(char *, struct svc_req *)) start_1_svc;
+            break;
+
+        case PAUSE:
+            _xdr_argument = (xdrproc_t) xdr_void;
+            _xdr_result = (xdrproc_t) xdr_long;
+            local = (char *(*)(char *, struct svc_req *)) pause_1_svc;
+            break;
+
+        case INTERVAL:
+            _xdr_argument = (xdrproc_t) xdr_int;
+            _xdr_result = (xdrproc_t) xdr_long;
+            local = (char *(*)(char *, struct svc_req *)) interval_1_svc;
+            break;
+
+        case STOP:
+            _xdr_argument = (xdrproc_t) xdr_int;
+            _xdr_result = (xdrproc_t) xdr_long;
+            local = (char *(*)(char *, struct svc_req *)) stop_1_svc;
+            break;
+
+        default:
+            svcerr_noproc (transp);
+            return;
+    }
+    memset ((char *)&argument, 0, sizeof (argument));
+    if (!svc_getargs (transp, (xdrproc_t) _xdr_argument, (caddr_t) &argument)) {
+        svcerr_decode (transp);
+        return;
+    }
+    result = (*local)((char *)&argument, rqstp);
+    if (result != NULL && !svc_sendreply(transp, (xdrproc_t) _xdr_result, result)) {
+        svcerr_systemerr (transp);
+    }
+    if (!svc_freeargs (transp, (xdrproc_t) _xdr_argument, (caddr_t) &argument)) {
+        fprintf (stderr, "%s", "unable to free arguments");
+        exit (1);
+    }
+    return;
+}
 /*****************************************************************************/
 /**                                  Main                                   **/
 /*****************************************************************************/
 int main(int argc, char **argv) {
-    int result;
+/*    int result;
 
     memset(&parserContext, 0, sizeof(parserContext_t));
     result = init_packet_stream(&parserContext);
@@ -376,6 +500,35 @@ int main(int argc, char **argv) {
     }
     print_header(&parserContext.serverInfo);
     result = server(&parserContext);
-    return result;
+    return result;*/
+    register SVCXPRT *transp;
+
+    pmap_unset (PCISNIFF, PCISNIFF_V1);
+
+    transp = svcudp_create(RPC_ANYSOCK);
+    if (transp == NULL) {
+        fprintf (stderr, "%s", "cannot create udp service.");
+        exit(1);
+    }
+    if (!svc_register(transp, PCISNIFF, PCISNIFF_V1, pcisniff_1, IPPROTO_UDP)) {
+        fprintf (stderr, "%s", "unable to register (PCISNIFF, PCISNIFF_V1, udp).");
+        exit(1);
+    }
+
+    transp = svctcp_create(RPC_ANYSOCK, 0, 0);
+    if (transp == NULL) {
+        fprintf (stderr, "%s", "cannot create tcp service.");
+        exit(1);
+    }
+    if (!svc_register(transp, PCISNIFF, PCISNIFF_V1, pcisniff_1, IPPROTO_TCP)) {
+        fprintf (stderr, "%s", "unable to register (PCISNIFF, PCISNIFF_V1, tcp).");
+        exit(1);
+    }
+
+    svc_run ();
+    fprintf (stderr, "%s", "svc_run returned");
+    exit (1);
+    /* NOTREACHED */
+
 }
 

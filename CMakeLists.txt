@@ -17,18 +17,18 @@ target_include_directories(parser
         )
 
 add_library(common STATIC
-        src/rdma/common.cpp)
+        src/rpc/common.cpp)
 
 link_libraries(rdmacm ibverbs pthread common parser)
 add_executable(client
-        src/rdma/client.cpp)
+        src/rpc/client.cpp)
 target_include_directories(client
         PUBLIC
         src/parser/include
         )
 
 add_executable(server
-        src/rdma/server.cpp)
+        src/rpc/server.cpp)
 target_include_directories(server
         PUBLIC
         src/parser/include
