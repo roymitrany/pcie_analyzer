@@ -9,14 +9,10 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <string.h>
-#include <rdma/rdma_cma.h>
-#include <rdma/rdma_verbs.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <arpa/inet.h>
 #include "common.h"
-#define SA struct sockaddr
-#define MAX 80
 /*****************************************************************************/
 /**                                Namespace                                **/
 /*****************************************************************************/
@@ -42,177 +38,26 @@ typedef enum parserInteractiveMenu_e{
  * Main parser context instance
  */
 static parserContext_t parserContext;
-
-/*****************************************************************************/
-/**                            Static functions                             **/
-/*****************************************************************************/
-/**
- * Prints program information header
- * @param serverInfo Connection information
- */
-static void print_header(serverInfo_t* serverInfo){
-    if(NULL == serverInfo){
-        return;
-    }
-    print_header_common();
-    PARSER_PRINT("Starting in client mode\n");
-    PARSER_PRINT("Server: %s, Port:%s\n", serverInfo->server, serverInfo->port);
-}
+static CLIENT *cl;
 
 /**
  * Aux interactive handler for interval value parsing
  * @param menuPtr RPC message
- * @return PARSER_SUCCESS on success, PARSER_ERROR otherwise
+ * @return
  */
-static int interactive_menu_parse_interval(parserRpcMessage_t* menuPtr){
+static int interactive_menu_parse_interval(){
     int result = 0;
+    int erval=0;
 
     PARSER_PRINT("Enter new time interval in usec for packets streaming\n");
-    result = scanf("%d", (int*)(&menuPtr->connectionData.streamingUSecInterval));
+    result = scanf("%d", (int*)(&erval));
     if(result <= 0){
         PARSER_DBG("Failed to parse interval\n");
         scanf("%*s");
-        return PARSER_ERROR;
+        return -1;
     }
 
-    return PARSER_SUCCESS;
-}
-
-/**
- * User CLI interface
- * @param menuPtr RPC message
- * @return PARSER_SUCCESS on success, PARSER_ERROR otherwise
- */
-static int interactive_menu(parserRpcMessage_t* rpcLocal){
-    int result = 0;
-    parserInteractiveMenu menuItem = RPC_START;
-    PARSER_PRINT("============================================\n"
-                 " Enter next command for RPC:\n"
-                 "    %d - Start streaming meta-data packets\n"
-                 "    %d - Pause streaming process\n"
-                 "    %d - Change streaming interval\n"
-                 "    %d - Stop streaming process and exit\n"
-                 "============================================\n"
-    , RPC_START, RPC_PAUSE, RPC_CHANGE_INTERVAL, RPC_STOP);
-
-
-    result = scanf("%d", (int*)&menuItem);
-    if(result <= 0){
-        PARSER_DBG("Failed to parse selection\n");
-        scanf("%*s"); // clear invalid char(s) from stdin
-        return 0;
-    }
-
-    switch (menuItem){
-        case RPC_START:
-            rpcLocal->status = PARSER_RPC_START;
-            break;
-        case RPC_PAUSE:
-            rpcLocal->status = PARSER_RPC_PAUSE;
-            break;
-        case RPC_CHANGE_INTERVAL:
-            // Pause the streaming until user enters new value
-            rpcLocal->status = PARSER_RPC_SET_INTERVAL;
-            result = interactive_menu_parse_interval(rpcLocal);
-            if(PARSER_SUCCESS != result){
-                return 0;
-            }
-            rpcLocal->status = PARSER_RPC_START;
-            break;
-        case RPC_STOP:
-            rpcLocal->status = PARSER_RPC_STOP;
-            return 1;
-        default:
-            PARSER_DBG("Invalid RPC command\n");
-    }
-
-    return 0;
-}
-
-/**
- * CLI thread funtion
- * @param ptr RPC message
- * @return 0
- */
-static void* thread_menu(void* ptr){
-    parserRpcMessage_t* rpcLocal = (parserRpcMessage_t*)ptr;
-    while(1){
-        if(interactive_menu(rpcLocal)){
-            return 0;
-        }
-    }
-}
-
-/**
- * RPC message send handler
- * @param context parser context instance
- * @return PARSER_SUCCESS on success, PARSER_ERROR otherwise
- */
-static int rdma_send_rpc(parserContext_t* context){
-    int result;
-    /*struct ibv_wc wc;
-    result = rdma_post_send(context->rdmaMetadata.id,
-                            NULL,
-                            &(context->rpcMetadata),
-                            sizeof(parserRpcMessage_t),
-                            context->rdmaMetadata.rpc_mr,
-                            context->rdmaMetadata.send_flags);
-    if(result){
-        PARSER_DBG("Failed in rdma_post_send\n");
-        return PARSER_ERROR;
-    }
-
-    result = rdma_get_send_comp(context->rdmaMetadata.id, &wc);
-    if(result < 0){
-        PARSER_DBG("Failed in rdma_get_send_comp\n");
-        return PARSER_ERROR;
-    }else if(result > 0){
-        if(wc.status != 0){
-            PARSER_DBG("Got send completion with status code %d\n", wc.status);
-            return PARSER_ERROR;
-        }
-    }*/
-    int sockfd, connfd;
-    struct sockaddr_in servaddr, cli;
-
-    // socket create and varification
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1) {
-        printf("socket creation failed...\n");
-        exit(0);
-    }
-    else
-        printf("Socket successfully created..\n");
-    bzero(&servaddr, sizeof(servaddr));
-
-    // assign IP, PORT
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = inet_addr("192.168.0.1");
-    servaddr.sin_port = htons(21222);
-
-    // connect the client socket to server socket
-    if (connect(sockfd, (SA*)&servaddr, sizeof(servaddr)) != 0) {
-        printf("connection with the server failed...\n");
-        exit(0);
-    }
-    else
-        printf("connected to the server..\n");
-
-    char buff[MAX];
-    int n;
-    for (;;) {
-        bzero(buff, sizeof(buff));
-        write(sockfd, buff, sizeof(buff));
-        bzero(buff, sizeof(buff));
-        read(sockfd, buff, sizeof(buff));
-        printf("From Server : %s", buff);
-        if ((strncmp(buff, "exit", 4)) == 0) {
-            printf("Client Exit...\n");
-            break;
-        }
-    }
-    // close the socket
-    close(sockfd);     return PARSER_SUCCESS;
+    return erval;
 }
 
 /**
@@ -222,274 +67,87 @@ static int rdma_send_rpc(parserContext_t* context){
  * @param context parser context instance
  * @return PARSER_SUCCESS on success, PARSER_ERROR otherwise
  */
-static int main_loop(parserContext_t* context){
+static int main_loop(){
     pthread_t cliThread;
-    struct ibv_wc wc;
     int result;
-
-    // Reset CLI and RPC interface
-    context->rpcMetadata.status = PARSER_RPC_INVALID;
-    context->rpcLocal.status = PARSER_RPC_INVALID;
-
-    // Start another thread for CLI
-    result = pthread_create(&cliThread,
-                            NULL,
-                            thread_menu,
-                            (void*)(&context->rpcLocal));
-    if(result){
-        PARSER_DBG("Failed to create CLI thread\n");
-        return PARSER_ERROR;
-    }
+    int *rpc_res;
+    int erval = 1;
 
     PARSER_DBG("Starting main loop\n");
     while (1){
-        if(context->rpcMetadata.status != context->rpcLocal.status){
-            PARSER_DBG("RPC status changed\n");
-            // RPC status changed because of CLI input
-            //context->rpcMetadata.status = context->rpcLocal.status;
-            switch (context->rpcLocal.status){
-                case PARSER_RPC_START:
-                    PARSER_PRINT("Sending RPC start command\n");
-                    memcpy(&(context->rpcMetadata), &(context->rpcLocal), sizeof(parserRpcMessage_t));
-                    break;
-                case PARSER_RPC_PAUSE:
-                    PARSER_PRINT("Sending RPC pause command\n");
-                    context->rpcMetadata.status = context->rpcLocal.status;
-                    break;
-                case PARSER_RPC_SET_INTERVAL:
-                    PARSER_PRINT("Sending RPC pause command for safe interval value change\n");
-                    context->rpcMetadata.status = PARSER_RPC_PAUSE;
-                    result = rdma_send_rpc(context);
-                    if(result){
-                        return PARSER_ERROR;
-                    }
-                    while(context->rpcLocal.status == PARSER_RPC_SET_INTERVAL){
-                        //Wait until user enter new value
-                    }
-                    PARSER_PRINT("Sending RPC change interval command and start\n");
-                    memcpy(&(context->rpcMetadata), &(context->rpcLocal), sizeof(parserRpcMessage_t));
-                    break;
-                case PARSER_RPC_STOP:
-                    PARSER_PRINT("Sending RPC stop command\n");
-                    memcpy(&(context->rpcMetadata), &(context->rpcLocal), sizeof(parserRpcMessage_t));
-                    break;
-                default:
-                    PARSER_PRINT("Invalid RPC command\n");
-                    return PARSER_ERROR;
+        parserInteractiveMenu menuItem = RPC_START;
+        PARSER_PRINT("============================================\n"
+                     " Enter next command for RPC:\n"
+                     "    %d - Start streaming meta-data packets\n"
+                     "    %d - Pause streaming process\n"
+                     "    %d - Change streaming interval\n"
+                     "    %d - Stop streaming process and exit\n"
+                     "============================================\n"
+        , RPC_START, RPC_PAUSE, RPC_CHANGE_INTERVAL, RPC_STOP);
 
-            }
-            result = rdma_send_rpc(context);
-            if(result){
-                return PARSER_ERROR;
-            }
 
-            PARSER_DBG("Send completed successfully\n");
-            if(context->rpcMetadata.status==PARSER_RPC_STOP){
-                pthread_join(cliThread, NULL);
-                return PARSER_SUCCESS;
-            }
+        result = scanf("%d", (int*)&menuItem);
+        if(result <= 0){
+            PARSER_DBG("Failed to parse selection\n");
+            scanf("%*s"); // clear invalid char(s) from stdin
+            return 0;
         }
+
+        switch (menuItem){
+            case RPC_START:
+                PARSER_PRINT("Sending RPC start command\n");
+                rpc_res = start_1(NULL, cl);
+                break;
+            case RPC_PAUSE:
+                PARSER_PRINT("Sending RPC pause command\n");
+                rpc_res = pause_1(NULL, cl);
+                break;
+            case RPC_CHANGE_INTERVAL:
+                // Pause the streaming until user enters new value
+                erval = interactive_menu_parse_interval();
+                PARSER_PRINT("Sending RPC change interval to %d. \n", erval);
+                if(erval < 0){
+                    return PARSER_SUCCESS;
+                }
+                rpc_res = interval_1(&erval, cl);
+                break;
+            case RPC_STOP:
+                PARSER_PRINT("Sending RPC stop command\n");
+                stop_1(NULL, cl);
+                return 1;
+            default:
+                PARSER_DBG("Invalid RPC command\n");
+        }
+
+        if (rpc_res == NULL){
+            return PARSER_ERROR; //TODO: change to timeout
+        }
+        if (*rpc_res<0){
+            return PARSER_ERROR;
+        }
+
+        PARSER_DBG("Send completed successfully\n");
     }
-
-
-
 }
 
-/**
- * Entry point function for client process, initializing RDMA and RPC
- * connections
- * @param context parser context instance
- * @return PARSER_SUCCESS on success, PARSER_ERROR otherwise
- */
-static int client(parserContext_t* context){
-    int result = PARSER_ERROR;
 
-
-    /*
-     * Use rdma_getaddrinfo to determine if there is a path to the
-     * other end. The server runs in passive mode so it waits for a
-     * connection. The client uses this function call to determine if
-     * a path exists based on the server name, port and the hints
-     * provided. The result comes back in res.
-     */
-    context->rdmaMetadata.hints.ai_port_space = RDMA_PS_TCP;
-    result = rdma_getaddrinfo(context->serverInfo.server,
-                              context->serverInfo.port,
-                              &(context->rdmaMetadata.hints),
-                              &(context->rdmaMetadata.res));
-    if(result){
-        PARSER_DBG("Failed in rdma_getaddrinfo\n");
-        return PARSER_ERROR;
-    }
-
-    /*
-     * Now create a communication identifier and (on the client) a
-     * queue pair (QP) for processing jobs. We set certain attributes
-     * on this link.
-     */
-    context->rdmaMetadata.attr.cap.max_send_wr = context->rdmaMetadata.attr.cap.max_recv_wr = 1; //Max number of send/recv requests allowed in the queue
-    context->rdmaMetadata.attr.cap.max_send_sge = context->rdmaMetadata.attr.cap.max_recv_sge = 1;
-    context->rdmaMetadata.attr.qp_context = context->rdmaMetadata.id;
-    context->rdmaMetadata.attr.sq_sig_all = 1;
-    result = rdma_create_ep(&(context->rdmaMetadata.id),
-                            context->rdmaMetadata.res,
-                            NULL,
-                            &(context->rdmaMetadata.attr));
-    if(result){
-        PARSER_DBG("Failed in rdma_create_ep\n");
-        rdma_freeaddrinfo(context->rdmaMetadata.res);
-        return PARSER_ERROR;
-    }
-
-
-    /* Now either connect to the server or setup a wait for a
-     * connection from a client. On the server side we also setup a
-     * receive QP entry so we are ready to receive data.
-     */
-    context->rdmaMetadata.rpc_mr = rdma_reg_msgs(context->rdmaMetadata.id,
-                                                 &(context->rpcMetadata),
-                                                 sizeof(parserRpcMessage_t));
-    if (!context->rdmaMetadata.rpc_mr){
-        PARSER_DBG("Failed in rdma_reg_msgs for rpc\n");
-        rdma_destroy_ep(context->rdmaMetadata.id);
-        rdma_freeaddrinfo(context->rdmaMetadata.res);
-        return PARSER_ERROR;
-    }
-
-    context->rdmaMetadata.packet_mr = ibv_reg_mr(context->rdmaMetadata.id->pd,
-                                                 &(context->packetMetadata),
-                                                 sizeof(parserData_t),
-                                                 IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE);
-    if(!context->rdmaMetadata.packet_mr){
-        PARSER_DBG("Failed in ibv_reg_mr\n");
-        rdma_dereg_mr(context->rdmaMetadata.rpc_mr);
-        rdma_destroy_ep(context->rdmaMetadata.id);
-        rdma_freeaddrinfo(context->rdmaMetadata.res);
-        return PARSER_ERROR;
-    }
-
-    context->rpcLocal.connectionData.bufferAddr = (uint64_t)(&context->packetMetadata.data);
-    context->rpcLocal.connectionData.bufferRkey = context->rdmaMetadata.packet_mr->rkey;
-    context->rpcLocal.connectionData.bufferLength = context->rdmaMetadata.packet_mr->length;
-    context->rpcLocal.connectionData.streamingUSecInterval = PARSER_STREAMING_USEC_DEFAULT_INTERVAL;
-
-    PARSER_PRINT("Connecting to server...\n");
-    result = rdma_connect(context->rdmaMetadata.id, NULL);
-    if(result){
-        PARSER_DBG("Connection Failed\n");
-        rdma_dereg_mr(context->rdmaMetadata.packet_mr);
-        rdma_dereg_mr(context->rdmaMetadata.rpc_mr);
-        rdma_destroy_ep(context->rdmaMetadata.id);
-        rdma_freeaddrinfo(context->rdmaMetadata.res);
-        return PARSER_ERROR;
-    }
-    PARSER_PRINT("Connection established\n");
-
-    result = main_loop(context);
-
-    rdma_disconnect(context->rdmaMetadata.id);
-    rdma_dereg_mr(context->rdmaMetadata.packet_mr);
-    rdma_dereg_mr(context->rdmaMetadata.rpc_mr);
-    rdma_destroy_ep(context->rdmaMetadata.id);
-    rdma_freeaddrinfo(context->rdmaMetadata.res);
-
-    return result;
-}
-
-/* Default timeout can be changed using clnt_control() */
-static struct timeval TIMEOUT = { 25, 0 };
-
-int *
-start_1(void *argp, CLIENT *clnt)
-{
-    static int clnt_res;
-
-    memset((char *)&clnt_res, 0, sizeof(clnt_res));
-    if (clnt_call (clnt, START,
-                   (xdrproc_t) xdr_void, (caddr_t) argp,
-                   (xdrproc_t) xdr_long, (caddr_t) &clnt_res,
-                   TIMEOUT) != RPC_SUCCESS) {
-        return (NULL);
-    }
-    return (&clnt_res);
-}
-
-int *
-pause_1(void *argp, CLIENT *clnt)
-{
-    static int clnt_res;
-
-    memset((char *)&clnt_res, 0, sizeof(clnt_res));
-    if (clnt_call (clnt, PAUSE,
-                   (xdrproc_t) xdr_void, (caddr_t) argp,
-                   (xdrproc_t) xdr_long, (caddr_t) &clnt_res,
-                   TIMEOUT) != RPC_SUCCESS) {
-        return (NULL);
-    }
-    return (&clnt_res);
-}
-
-int *
-interval_1(int *argp, CLIENT *clnt)
-{
-    static int clnt_res;
-
-    memset((char *)&clnt_res, 0, sizeof(clnt_res));
-    if (clnt_call (clnt, INTERVAL,
-                   (xdrproc_t) xdr_int, (caddr_t) argp,
-                   (xdrproc_t) xdr_long, (caddr_t) &clnt_res,
-                   TIMEOUT) != RPC_SUCCESS) {
-        return (NULL);
-    }
-    return (&clnt_res);
-}
-
-int *
-stop_1(int *argp, CLIENT *clnt)
-{
-    static int clnt_res;
-
-    memset((char *)&clnt_res, 0, sizeof(clnt_res));
-    if (clnt_call (clnt, STOP,
-                   (xdrproc_t) xdr_int, (caddr_t) argp,
-                   (xdrproc_t) xdr_long, (caddr_t) &clnt_res,
-                   TIMEOUT) != RPC_SUCCESS) {
-        return (NULL);
-    }
-    return (&clnt_res);
-}
 /*****************************************************************************/
 /**                                  Main                                   **/
 /*****************************************************************************/
 int main(int argc, char **argv) {
-/*    int result = PARSER_ERROR;
+    int result = PARSER_ERROR;
     memset(&parserContext, 0, sizeof(parserContext_t));
 
-    result = parse_args(argc, argv, &(parserContext.serverInfo));
-    if(PARSER_SUCCESS != result){
-        PARSER_DBG("Failed to parse args\n");
-        return result;
-    }
-    print_header(&(parserContext.serverInfo));
-    result = client(&parserContext);
-    return result;
-    */
-    CLIENT *cl;
-    int *result;
     cl = clnt_create(argv[1], PCISNIFF, PCISNIFF_V1, "tcp");
     if (cl == NULL) {
         printf("error: could not connect to server.\n");
         return 1;
     }
-    result = start_1(NULL, cl);
-    if (result == NULL) {
-        printf("error: RPC failed!\n");
-        return 1;
-    }
-    printf("client: server returned value %d .\n", *result);
-
-    return 0;
-
+    print_header_common();
+    PARSER_PRINT("Starting in client mode\n");
+    result = main_loop();
+    //return result;
+    return result;
 }
 
 

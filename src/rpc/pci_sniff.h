@@ -34,17 +34,17 @@ extern int pcisniff_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */
 #define START 1
-extern  long * start_1();
-extern  long * start_1_svc();
+extern  int * start_1();
+extern  int * start_1_svc();
 #define PAUSE 2
-extern  long * pause_1();
-extern  long * pause_1_svc();
+extern  int * pause_1();
+extern  int * pause_1_svc();
 #define INTERVAL 3
-extern  long * interval_1();
-extern  long * interval_1_svc();
+extern  int * interval_1();
+extern  int * interval_1_svc();
 #define STOP 4
-extern  long * stop_1();
-extern  long * stop_1_svc();
+extern  int * stop_1();
+extern  int * stop_1_svc();
 extern int pcisniff_1_freeresult ();
 #endif /* K&R C */
 

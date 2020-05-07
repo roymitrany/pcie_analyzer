@@ -27,31 +27,6 @@ int parser_debug = 0;
 int parser_debug = 1;
 #endif
 
-/*****************************************************************************/
-/**                        Function implementatios                          **/
-/*****************************************************************************/
-int parse_args(int argc, char** argv, serverInfo_t* serverInfo){
-    int flag = 0;
-
-    serverInfo->server = PARSER_DEFAULT_SERVER;
-    serverInfo->port = PARSER_DEFAULT_PORT;
-
-    while((flag = getopt(argc, argv, "m:s:p:")) != -1){
-        switch(flag){
-            case 's':
-                serverInfo->server = optarg;
-                break;
-            case 'p':
-                serverInfo->port = optarg;
-                break;
-            default:
-                PARSER_DBG("Unsupported argument\n");
-                return PARSER_ERROR;
-        }
-    }
-
-    return PARSER_SUCCESS;
-}
 
 void print_header_common(void){
     PARSER_PRINT("Alexey Tusov, tusovalexey@gmail.com\nIrina Gorodovskaya, ir.gorod@gmail.com\n");

@@ -17,7 +17,9 @@ target_include_directories(parser
         )
 
 add_library(common STATIC
-        src/rpc/common.cpp)
+        src/rpc/common.cpp
+        src/rpc/pci_sniff_clnt.c
+        src/rpc/pci_sniff_svc.c)
 
 link_libraries(rdmacm ibverbs pthread common parser)
 add_executable(client
