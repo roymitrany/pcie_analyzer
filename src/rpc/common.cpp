@@ -6,8 +6,6 @@
 /*****************************************************************************/
 #include <getopt.h>
 #include <string.h>
-#include <rdma/rdma_cma.h>
-#include <rdma/rdma_verbs.h>
 #include "common.h"
 
 
@@ -30,5 +28,4 @@ int parser_debug = 1;
 
 void print_header_common(void){
     PARSER_PRINT("Alexey Tusov, tusovalexey@gmail.com\nIrina Gorodovskaya, ir.gorod@gmail.com\n");
-    PARSER_PRINT("Protocol meta-data parser over RDMA\n");
 }
