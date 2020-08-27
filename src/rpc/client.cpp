@@ -114,6 +114,7 @@ static int main_loop(){
             case RPC_STOP:
                 PARSER_PRINT("Sending RPC stop command\n");
                 stop_1(NULL, cl);
+                stop_1(NULL, cl);
                 return 1;
             default:
                 PARSER_DBG("Invalid RPC command\n");

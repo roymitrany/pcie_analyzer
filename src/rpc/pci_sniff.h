@@ -31,6 +31,7 @@ extern  int * interval_1_svc(int *, struct svc_req *);
 extern  int * stop_1(void *, CLIENT *);
 extern  int * stop_1_svc(void *, struct svc_req *);
 extern int pcisniff_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
+static void pcisniff_1 (struct svc_req *, SVCXPRT *);
 
 #else /* K&R C */
 #define START 1

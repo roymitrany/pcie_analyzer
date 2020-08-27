@@ -17,7 +17,7 @@
 #endif
 
 static void
-pcisniff_1(struct svc_req *rqstp, register SVCXPRT *transp)
+pcisniff_1(struct svc_req *rqstp, SVCXPRT *transp)
 {
 	union {
 		int interval_1_arg;
@@ -75,7 +75,7 @@ pcisniff_1(struct svc_req *rqstp, register SVCXPRT *transp)
 	return;
 }
 
-int
+/*int
 main (int argc, char **argv)
 {
 	register SVCXPRT *transp;
@@ -105,5 +105,5 @@ main (int argc, char **argv)
 	svc_run ();
 	fprintf (stderr, "%s", "svc_run returned");
 	exit (1);
-	/* NOTREACHED */
-}
+	/* NOTREACHED
+}*/

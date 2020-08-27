@@ -142,8 +142,6 @@ static void* streamingThreadFunction(void* ptr){
     }
 }
 
-
-
 /**
  * Init packet stream module as packets data manager
  * @param context parser context instance
@@ -205,7 +203,7 @@ int * stop_1_svc(void *v, struct svc_req *){
     return &rpc_res;
 }
 
-static void
+/*static void
 pcisniff_1(struct svc_req *rqstp, register SVCXPRT *transp)
 {
     union {
@@ -263,7 +261,7 @@ pcisniff_1(struct svc_req *rqstp, register SVCXPRT *transp)
     }
     return;
 }
-
+*/
 
 /*****************************************************************************/
 /**                                  Main                                   **/
@@ -309,6 +307,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    print_header(&parserContext.serverInfo);
     svc_run ();
     fprintf (stderr, "%s", "svc_run returned");
     exit (1);
