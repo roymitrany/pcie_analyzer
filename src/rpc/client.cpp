@@ -96,11 +96,11 @@ static int main_loop(){
         switch (menuItem){
             case RPC_START:
                 PARSER_PRINT("Sending RPC start command\n");
-                rpc_res = start_1(NULL, cl);
+                rpc_res = start_3(NULL, cl);
                 break;
             case RPC_PAUSE:
                 PARSER_PRINT("Sending RPC pause command\n");
-                rpc_res = pause_1(NULL, cl);
+                rpc_res = pause_3(NULL, cl);
                 break;
             case RPC_CHANGE_INTERVAL:
                 // Pause the streaming until user enters new value
@@ -109,12 +109,11 @@ static int main_loop(){
                 if(erval < 0){
                     return PARSER_SUCCESS;
                 }
-                rpc_res = interval_1(&erval, cl);
+                rpc_res = interval_3(&erval, cl);
                 break;
             case RPC_STOP:
                 PARSER_PRINT("Sending RPC stop command\n");
-                stop_1(NULL, cl);
-                stop_1(NULL, cl);
+                stop_3(NULL, cl);
                 return 1;
             default:
                 PARSER_DBG("Invalid RPC command\n");
@@ -139,7 +138,7 @@ int main(int argc, char **argv) {
     int result = PARSER_ERROR;
     memset(&parserContext, 0, sizeof(parserContext_t));
 
-    cl = clnt_create(argv[1], PCISNIFF, PCISNIFF_V1, "tcp");
+    cl = clnt_create(argv[1], PCISNIFF, PCISNIFF_V2, "tcp");
     if (cl == NULL) {
         printf("error: could not connect to server.\n");
         return 1;

@@ -175,44 +175,51 @@ static int init_packet_stream(parserContext_t* context){
 
     return PARSER_SUCCESS;
 }
-int * start_1_svc(void *v, struct svc_req *){
+/*int * start_3_svc(char *v, struct svc_req *){
     rpc_res = 10;
     printf("Strating!!!!!!!\n");
     parserContext.status=START;
     return &rpc_res;
+}*/
+
+int * start_3_svc(void *v, struct svc_req *){
+    rpc_res = 10;
+    printf("Starting!!!!!!!\n");
+    parserContext.status=STOP;
+    return &rpc_res;
 }
 
-int * pause_1_svc(void *v, struct svc_req *){
+int * pause_3_svc(void *v, struct svc_req *){
     rpc_res = 11;
     printf("Pausing!!!!!!!\n");
     parserContext.status=PAUSE;
     return &rpc_res;
 }
 
-int * interval_1_svc(int *interval, struct svc_req *){
+int * interval_3_svc(int *interval, struct svc_req *){
     rpc_res = 12;
     printf("Changing interval to %d\n", *interval);
     parserContext.streamingUSecInterval = *interval;
     return &rpc_res;
 }
 
-int * stop_1_svc(void *v, struct svc_req *){
+int * stop_3_svc(void *v, struct svc_req *){
     rpc_res = 13;
     printf("Stopping!!!!!!!\n");
     parserContext.status=STOP;
     return &rpc_res;
 }
 
-/*static void
-pcisniff_1(struct svc_req *rqstp, register SVCXPRT *transp)
+
+static void
+pcisniff_3(struct svc_req *rqstp, register SVCXPRT *transp)
 {
     union {
-        int interval_1_arg;
+        int interval_3_arg;
     } argument;
     char *result;
     xdrproc_t _xdr_argument, _xdr_result;
     char *(*local)(char *, struct svc_req *);
-
 
     switch (rqstp->rq_proc) {
         case NULLPROC:
@@ -222,26 +229,27 @@ pcisniff_1(struct svc_req *rqstp, register SVCXPRT *transp)
         case START:
             _xdr_argument = (xdrproc_t) xdr_void;
             _xdr_result = (xdrproc_t) xdr_int;
-            local = (char *(*)(char *, struct svc_req *)) start_1_svc;
+            local = (char *(*)(char *, struct svc_req *)) start_3_svc;
             break;
 
         case PAUSE:
             _xdr_argument = (xdrproc_t) xdr_void;
             _xdr_result = (xdrproc_t) xdr_int;
-            local = (char *(*)(char *, struct svc_req *)) pause_1_svc;
+            local = (char *(*)(char *, struct svc_req *)) pause_3_svc;
             break;
 
         case INTERVAL:
             _xdr_argument = (xdrproc_t) xdr_int;
             _xdr_result = (xdrproc_t) xdr_int;
-            local = (char *(*)(char *, struct svc_req *)) interval_1_svc;
+            local = (char *(*)(char *, struct svc_req *)) interval_3_svc;
             break;
 
         case STOP:
             _xdr_argument = (xdrproc_t) xdr_void;
             _xdr_result = (xdrproc_t) xdr_int;
-            local = (char *(*)(char *, struct svc_req *)) stop_1_svc;
+            local = (char *(*)(char *, struct svc_req *)) stop_3_svc;
             break;
+
         default:
             svcerr_noproc (transp);
             return;
@@ -261,8 +269,6 @@ pcisniff_1(struct svc_req *rqstp, register SVCXPRT *transp)
     }
     return;
 }
-*/
-
 /*****************************************************************************/
 /**                                  Main                                   **/
 /*****************************************************************************/
@@ -282,18 +288,20 @@ int main(int argc, char **argv) {
         PARSER_DBG("Failed to create CLI thread\n");
         return PARSER_ERROR;
     }
+    print_header(&parserContext.serverInfo);
+    //rpc_mainn();
 
     register SVCXPRT *transp;
 
-    pmap_unset (PCISNIFF, PCISNIFF_V1);
+    pmap_unset (PCISNIFF, PCISNIFF_V2);
 
     transp = svcudp_create(RPC_ANYSOCK);
     if (transp == NULL) {
         fprintf (stderr, "%s", "cannot create udp service.");
         exit(1);
     }
-    if (!svc_register(transp, PCISNIFF, PCISNIFF_V1, pcisniff_1, IPPROTO_UDP)) {
-        fprintf (stderr, "%s", "unable to register (PCISNIFF, PCISNIFF_V1, udp).");
+    if (!svc_register(transp, PCISNIFF, PCISNIFF_V2, pcisniff_3, IPPROTO_UDP)) {
+        fprintf (stderr, "%s", "unable to register (PCISNIFF, PCISNIFF_V2, udp).");
         exit(1);
     }
 
@@ -302,12 +310,11 @@ int main(int argc, char **argv) {
         fprintf (stderr, "%s", "cannot create tcp service.");
         exit(1);
     }
-    if (!svc_register(transp, PCISNIFF, PCISNIFF_V1, pcisniff_1, IPPROTO_TCP)) {
-        fprintf (stderr, "%s", "unable to register (PCISNIFF, PCISNIFF_V1, tcp).");
+    if (!svc_register(transp, PCISNIFF, PCISNIFF_V2, pcisniff_3, IPPROTO_TCP)) {
+        fprintf (stderr, "%s", "unable to register (PCISNIFF, PCISNIFF_V2, tcp).");
         exit(1);
     }
 
-    print_header(&parserContext.serverInfo);
     svc_run ();
     fprintf (stderr, "%s", "svc_run returned");
     exit (1);

@@ -15,38 +15,37 @@ extern "C" {
 
 
 #define PCISNIFF 0x3012225
-#define PCISNIFF_V1 1
+#define PCISNIFF_V2 3
 
 #if defined(__STDC__) || defined(__cplusplus)
 #define START 1
-extern  int * start_1(void *, CLIENT *);
-extern  int * start_1_svc(void *, struct svc_req *);
+extern  int * start_3(void *, CLIENT *);
+extern  int * start_3_svc(void *, struct svc_req *);
 #define PAUSE 2
-extern  int * pause_1(void *, CLIENT *);
-extern  int * pause_1_svc(void *, struct svc_req *);
+extern  int * pause_3(void *, CLIENT *);
+extern  int * pause_3_svc(void *, struct svc_req *);
 #define INTERVAL 3
-extern  int * interval_1(int *, CLIENT *);
-extern  int * interval_1_svc(int *, struct svc_req *);
+extern  int * interval_3(int *, CLIENT *);
+extern  int * interval_3_svc(int *, struct svc_req *);
 #define STOP 4
-extern  int * stop_1(void *, CLIENT *);
-extern  int * stop_1_svc(void *, struct svc_req *);
-extern int pcisniff_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
-static void pcisniff_1 (struct svc_req *, SVCXPRT *);
+extern  int * stop_3(void *, CLIENT *);
+extern  int * stop_3_svc(void *, struct svc_req *);
+extern int pcisniff_3_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */
 #define START 1
-extern  int * start_1();
-extern  int * start_1_svc();
+extern  int * start_3();
+extern  int * start_3_svc();
 #define PAUSE 2
-extern  int * pause_1();
-extern  int * pause_1_svc();
+extern  int * pause_3();
+extern  int * pause_3_svc();
 #define INTERVAL 3
-extern  int * interval_1();
-extern  int * interval_1_svc();
+extern  int * interval_3();
+extern  int * interval_3_svc();
 #define STOP 4
-extern  int * stop_1();
-extern  int * stop_1_svc();
-extern int pcisniff_1_freeresult ();
+extern  int * stop_3();
+extern  int * stop_3_svc();
+extern int pcisniff_3_freeresult ();
 #endif /* K&R C */
 
 #ifdef __cplusplus

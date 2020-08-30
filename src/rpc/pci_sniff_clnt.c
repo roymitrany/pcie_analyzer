@@ -10,7 +10,7 @@
 static struct timeval TIMEOUT = { 25, 0 };
 
 int *
-start_1(void *argp, CLIENT *clnt)
+start_3(void *argp, CLIENT *clnt)
 {
 	static int clnt_res;
 
@@ -25,7 +25,7 @@ start_1(void *argp, CLIENT *clnt)
 }
 
 int *
-pause_1(void *argp, CLIENT *clnt)
+pause_3(void *argp, CLIENT *clnt)
 {
 	static int clnt_res;
 
@@ -40,7 +40,7 @@ pause_1(void *argp, CLIENT *clnt)
 }
 
 int *
-interval_1(int *argp, CLIENT *clnt)
+interval_3(int *argp, CLIENT *clnt)
 {
 	static int clnt_res;
 
@@ -55,7 +55,7 @@ interval_1(int *argp, CLIENT *clnt)
 }
 
 int *
-stop_1(void *argp, CLIENT *clnt)
+stop_3(void *argp, CLIENT *clnt)
 {
 	static int clnt_res;
 
