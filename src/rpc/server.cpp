@@ -185,7 +185,7 @@ static int init_packet_stream(parserContext_t* context){
 int * start_3_svc(void *v, struct svc_req *){
     rpc_res = 10;
     printf("Starting!!!!!!!\n");
-    parserContext.status=STOP;
+    parserContext.status=START;
     return &rpc_res;
 }
 
@@ -210,6 +210,12 @@ int * stop_3_svc(void *v, struct svc_req *){
     return &rpc_res;
 }
 
+
+/*
+ * This method is copies as is from pci_sniff_svc.c. If we keep the file there, it does not compile due to c/c++ issues
+ * Needs to be re-copied if we run rpcgen again.
+ * The core will be later replaced with gRPC library, hopefully with better results.
+ */
 
 static void
 pcisniff_3(struct svc_req *rqstp, register SVCXPRT *transp)
@@ -291,6 +297,10 @@ int main(int argc, char **argv) {
     print_header(&parserContext.serverInfo);
     //rpc_mainn();
 
+    /*
+     * This part of main function is copied from main() method in pci_sniff.c file, after running rpcgen, that generates
+     * the pci_sniff_svc source file. Should be later replaced with gRPC library
+     */
     register SVCXPRT *transp;
 
     pmap_unset (PCISNIFF, PCISNIFF_V2);
