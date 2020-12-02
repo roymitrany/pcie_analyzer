@@ -6,7 +6,6 @@
 import sys
 import random
 import argparse
-import zlib
 import os
 if not os.path.exists('./Output'):
     os.makedirs('./Output')
@@ -126,7 +125,7 @@ def main():
         #------------- Transaction Layer -------------#
         
         #(1) Generate TLPs 
-        TLPs_list = TLPs_Generator.main( '1' , tlps_count )
+        TLPs_list = TLPs_Generator.main('1', tlps_count)
              
         
         #------------- 2. Data Link Layer -------------#
@@ -135,7 +134,7 @@ def main():
         Add_Seq_Add_LCRC(TLPs_list)
           
         #(2) Generate DLLPs   
-        DLLPs_list = DLLPs_Generator.main( '1' , dllps_count )   
+        DLLPs_list = DLLPs_Generator.main('1', dllps_count)
             
         
         #------------- 3. Physical Layer -------------#        
@@ -147,7 +146,7 @@ def main():
         Frame_Packet(DLLPs_list,'DLLP')
 
         #(3) Generate OSs 
-        OSs_list = OSs_Generator.main( '1' , oss_count )
+        OSs_list = OSs_Generator.main('1', oss_count)
 
         #(4) Shuffle Packets Order
         packets = TLPs_list + DLLPs_list + OSs_list
@@ -156,7 +155,7 @@ def main():
         #(5+6) Draw Link Table (with encoded packets if requested)
         #Create Gen1_Packets_List.txt (if requested)
                                           #All packets (shuffled)    use 8bit or 10bit symbols      use colors or not      
-        link_table = Gen1_Link_Table.main(      packets          ,        perform_encode        ,     use_colors       )
+        link_table = Gen1_Link_Table.main(packets, perform_encode, use_colors)
         
         #Print Link Symbols Table if Requested
         if (print_link_table):
@@ -169,10 +168,10 @@ def main():
     # User Chose Gen3. Calling Gen3_VOVIT_Generator.py.
     elif (args['Gen'] == '3'):
         print('PCIe Gen3 Packets')
-        TLPs = TLPs_Generator.main( 3 , tlps_count )
-        DLLPs = DLLPs_Generator.main( 3 , dllps_count )
-        OSs = OSs_Generator.main( 3 , oss_count )
-        Gen3_VOVIT_Generator.main(TLPs,DLLPs,OSs)
+        TLPs = TLPs_Generator.main(3, tlps_count)
+        DLLPs = DLLPs_Generator.main(3, dllps_count)
+        OSs = OSs_Generator.main(3, oss_count)
+        Gen3_VOVIT_Generator.main(TLPs, DLLPs, OSs)
     
     
     # User Chose Invalid Generation 
