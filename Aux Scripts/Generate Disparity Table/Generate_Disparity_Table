@@ -1,0 +1,34 @@
+#!/bin/bash
+
+while read line; do
+	# Parsing line
+	first_two_fields=`echo "$line" | cut -d',' -f1-2 | cut -d'[' -f2`
+	Current_RD_Minus=`echo "$line" | cut -d',' -f3 | cut -d'b' -f2`
+	Current_RD_Plus=`echo "$line" | cut -d',' -f4 | cut -d']' -f1 | cut -d'b' -f2`
+	
+	
+    # Calculating RD_Minus disparity
+	Current_RD_Minus_Ones=`echo "$Current_RD_Minus" | tr -cd '1' | wc -c`
+	Current_RD_Minus_Zeros=`echo "$Current_RD_Minus" | tr -cd '0' | wc -c`
+	(( Current_RD_Minus_Disparity = Current_RD_Minus_Ones-Current_RD_Minus_Zeros ))
+
+
+	# Calculating RD_Plus disparity
+	Current_RD_Plus_Ones=`echo "$Current_RD_Plus" | cut -d'b' -f2 | tr -cd '1' | wc -c`
+	Current_RD_Plus_Zeros=`echo "$Current_RD_Plus" | cut -d'b' -f2 | tr -cd '0' | wc -c`
+	(( Current_RD_Plus_Disparity = Current_RD_Plus_Ones-Current_RD_Plus_Zeros ))
+	
+
+	# Calculating Reverse Values
+	Current_RD_Minus_Reversed=`echo $Current_RD_Minus | rev`
+	Current_RD_Plus_Reversed=`echo $Current_RD_Plus | rev`	
+	
+	
+	# Printing new table with aligned columns
+	if [[ "$Current_RD_Plus_Disparity" -eq "0" ]]; then
+		echo "[ $first_two_fields , 0b$Current_RD_Minus , $Current_RD_Minus_Disparity , 0b$Current_RD_Minus_Reversed , 0b$Current_RD_Plus , $Current_RD_Plus_Disparity  , 0b$Current_RD_Plus_Reversed ] ," >> New_Control_Symbols_Table
+	else
+		echo "[ $first_two_fields , 0b$Current_RD_Minus , $Current_RD_Minus_Disparity , 0b$Current_RD_Minus_Reversed , 0b$Current_RD_Plus , $Current_RD_Plus_Disparity , 0b$Current_RD_Plus_Reversed ] ," >> New_Control_Symbols_Table
+	fi
+	
+done < ./Orig_Control_Symbols_Table
