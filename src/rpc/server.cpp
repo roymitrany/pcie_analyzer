@@ -26,6 +26,8 @@
 /*****************************************************************************/
 using namespace std;
 
+int flag=1;
+
 /*****************************************************************************/
 /**                            Static variables                             **/
 /*****************************************************************************/
@@ -109,10 +111,18 @@ static int sendPacket(parserContext_t* context){
 
     int n, len;
 
+    //TODO CHECK FILTER
+   if(flag){
+        printf("%s",(char *)(context->packetMetadata.data));
+
+
+    }
+    flag=0;
+
     sendto(sockfd, (const char *)&(context->packetMetadata), context->stream->getCurrPacketSizeBytes(),
            MSG_CONFIRM, (const struct sockaddr *) &servaddr,
            sizeof(servaddr));
-    printf("Tusov message sent.\n");
+    //printf("Tusov message sent.\n");
 
     close(sockfd);
     return 0;
@@ -134,9 +144,6 @@ static void* streamingThreadFunction(void* ptr){
         if(context->status == START){
             sendPacket(context);
             usleep(context->streamingUSecInterval);
-        }
-        if(context->status == PAUSE){
-            sleep(1);
         }
 
     }
@@ -189,19 +196,7 @@ int * start_3_svc(void *v, struct svc_req *){
     return &rpc_res;
 }
 
-int * pause_3_svc(void *v, struct svc_req *){
-    rpc_res = 11;
-    printf("Pausing!!!!!!!\n");
-    parserContext.status=PAUSE;
-    return &rpc_res;
-}
 
-int * interval_3_svc(int *interval, struct svc_req *){
-    rpc_res = 12;
-    printf("Changing interval to %d\n", *interval);
-    parserContext.streamingUSecInterval = *interval;
-    return &rpc_res;
-}
 
 int * stop_3_svc(void *v, struct svc_req *){
     rpc_res = 13;
@@ -233,21 +228,10 @@ pcisniff_3(struct svc_req *rqstp, register SVCXPRT *transp)
             return;
 
         case START:
+
             _xdr_argument = (xdrproc_t) xdr_void;
             _xdr_result = (xdrproc_t) xdr_int;
             local = (char *(*)(char *, struct svc_req *)) start_3_svc;
-            break;
-
-        case PAUSE:
-            _xdr_argument = (xdrproc_t) xdr_void;
-            _xdr_result = (xdrproc_t) xdr_int;
-            local = (char *(*)(char *, struct svc_req *)) pause_3_svc;
-            break;
-
-        case INTERVAL:
-            _xdr_argument = (xdrproc_t) xdr_int;
-            _xdr_result = (xdrproc_t) xdr_int;
-            local = (char *(*)(char *, struct svc_req *)) interval_3_svc;
             break;
 
         case STOP:
