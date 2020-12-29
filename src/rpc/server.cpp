@@ -133,6 +133,10 @@ static int sendPacket(parserContext_t* context){
  * @param ptr parser context instance
  * @return NULL
  */
+
+
+
+/*TODO DELETE
 static void* streamingThreadFunction(void* ptr){
     parserContext_t* context= (parserContext_t*)ptr;
     while (1){
@@ -148,6 +152,7 @@ static void* streamingThreadFunction(void* ptr){
 
     }
 }
+ */
 
 /**
  * Init packet stream module as packets data manager
@@ -189,6 +194,7 @@ static int init_packet_stream(parserContext_t* context){
     return &rpc_res;
 }*/
 
+/* TODO DELETE
 int * start_3_svc(void *v, struct svc_req *){
     rpc_res = 10;
     printf("Starting!!!!!!!\n");
@@ -197,13 +203,14 @@ int * start_3_svc(void *v, struct svc_req *){
 }
 
 
-
+/*TODO DELETE
 int * stop_3_svc(void *v, struct svc_req *){
     rpc_res = 13;
     printf("Stopping!!!!!!!\n");
     parserContext.status=STOP;
     return &rpc_res;
 }
+ */
 
 
 /*
@@ -212,6 +219,7 @@ int * stop_3_svc(void *v, struct svc_req *){
  * The core will be later replaced with gRPC library, hopefully with better results.
  */
 
+/*TODO DELETE
 static void
 pcisniff_3(struct svc_req *rqstp, register SVCXPRT *transp)
 {
@@ -259,6 +267,7 @@ pcisniff_3(struct svc_req *rqstp, register SVCXPRT *transp)
     }
     return;
 }
+ /*
 /*****************************************************************************/
 /**                                  Main                                   **/
 /*****************************************************************************/
@@ -267,8 +276,21 @@ int main(int argc, char **argv) {
 
 
     init_packet_stream(&parserContext);
-    int result;
 
+
+    while (1){
+
+
+            sendPacket(&parserContext);
+            usleep((&parserContext)->streamingUSecInterval);
+
+
+    }
+
+
+
+    /*TODO DELETE
+    int result;
     pthread_t streamingThread;
     result = pthread_create(&streamingThread,
                             NULL,
@@ -278,13 +300,17 @@ int main(int argc, char **argv) {
         PARSER_DBG("Failed to create CLI thread\n");
         return PARSER_ERROR;
     }
+     */
     print_header(&parserContext.serverInfo);
     //rpc_mainn();
 
     /*
      * This part of main function is copied from main() method in pci_sniff.c file, after running rpcgen, that generates
      * the pci_sniff_svc source file. Should be later replaced with gRPC library
+     *
      */
+
+    /* TODO DELETE
     register SVCXPRT *transp;
 
     pmap_unset (PCISNIFF, PCISNIFF_V2);
@@ -312,7 +338,9 @@ int main(int argc, char **argv) {
     svc_run ();
     fprintf (stderr, "%s", "svc_run returned");
     exit (1);
-    /* NOTREACHED */
+     NOTREACHED */
+
+
 
 }
 
