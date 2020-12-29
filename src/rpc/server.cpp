@@ -21,12 +21,19 @@
 #include "../parser/include/Exeptions.h"
 #include "common.h"
 
+#define ADDRESS_START_BYTE 12
+
+#define ADDRESS_LENGTH_BYTE 4
+
+
+
 /*****************************************************************************/
 /**                                Namespace                                **/
 /*****************************************************************************/
 using namespace std;
 
-int flag=1;
+int flag =0;
+
 
 /*****************************************************************************/
 /**                            Static variables                             **/
@@ -62,6 +69,18 @@ void printCurrPacket(uint32_t packet_size_bytes, const uint8_t* packet){
     }
     PARSER_PACKET_PRINT("\n");
     printf("============================================================\n");
+}
+
+
+bool pcie_filter(parserContext_t* context){
+    uint32_t filter[ADDRESS_LENGTH_BYTE]={0x02,0x00,0x0c,0x64};
+    for (int i = 0; i < ADDRESS_LENGTH_BYTE; i++) {
+        if((uint32_t) ((context->packetMetadata.data[i+ADDRESS_START_BYTE]) & 0xff)!=filter[i]) {
+            return false;
+        }
+
+    }
+    return true;
 }
 
 /**
@@ -111,48 +130,23 @@ static int sendPacket(parserContext_t* context){
 
     int n, len;
 
-    //TODO CHECK FILTER
-   if(flag){
-        printf("%s",(char *)(context->packetMetadata.data));
-
-
+    if(flag<10){
+        printCurrPacket( context->stream->getCurrPacketSizeBytes(),(const uint8_t*)&(context->packetMetadata.data)  );
+        flag++;
     }
-    flag=0;
 
-    sendto(sockfd, (const char *)&(context->packetMetadata), context->stream->getCurrPacketSizeBytes(),
-           MSG_CONFIRM, (const struct sockaddr *) &servaddr,
-           sizeof(servaddr));
+
+    if(pcie_filter(context)) {
+        sendto(sockfd, (const char *) &(context->packetMetadata), context->stream->getCurrPacketSizeBytes(),
+               MSG_CONFIRM, (const struct sockaddr *) &servaddr,
+               sizeof(servaddr));
+    }
     //printf("Tusov message sent.\n");
 
     close(sockfd);
     return 0;
 }
 
-/**
- * Data stream thread function
- * @param ptr parser context instance
- * @return NULL
- */
-
-
-
-/*TODO DELETE
-static void* streamingThreadFunction(void* ptr){
-    parserContext_t* context= (parserContext_t*)ptr;
-    while (1){
-
-        if(context->status == STOP){
-            return 0;
-        }
-
-        if(context->status == START){
-            sendPacket(context);
-            usleep(context->streamingUSecInterval);
-        }
-
-    }
-}
- */
 
 /**
  * Init packet stream module as packets data manager
@@ -170,47 +164,14 @@ static int init_packet_stream(parserContext_t* context){
         std::cout << " Invalid port speed. Try another LogicPacketStream. The speed is " << (int)e.getPortSpeed()
                   << ", byte offset is " << (int) e.getByteOffset() << std::endl;
 
-        /*
-        switch(e.getPortSpeed()){
-            case GEN1:
-                stream = new gen1::LogicPacketsStream(txFile, rxFile);
-                break;
-            case GEN2:
-                stream = new gen2::LogicPacketsStream(txFile, rxFile);
-                break;
-            case GEN4:
-                stream = new gen4::LogicPacketsStream(txFile, rxFile);
-                break;
-        }*/
+
         return PARSER_ERROR;
     }
 
     return PARSER_SUCCESS;
 }
-/*int * start_3_svc(char *v, struct svc_req *){
-    rpc_res = 10;
-    printf("Strating!!!!!!!\n");
-    parserContext.status=START;
-    return &rpc_res;
-}*/
-
-/* TODO DELETE
-int * start_3_svc(void *v, struct svc_req *){
-    rpc_res = 10;
-    printf("Starting!!!!!!!\n");
-    parserContext.status=START;
-    return &rpc_res;
-}
 
 
-/*TODO DELETE
-int * stop_3_svc(void *v, struct svc_req *){
-    rpc_res = 13;
-    printf("Stopping!!!!!!!\n");
-    parserContext.status=STOP;
-    return &rpc_res;
-}
- */
 
 
 /*
@@ -219,54 +180,7 @@ int * stop_3_svc(void *v, struct svc_req *){
  * The core will be later replaced with gRPC library, hopefully with better results.
  */
 
-/*TODO DELETE
-static void
-pcisniff_3(struct svc_req *rqstp, register SVCXPRT *transp)
-{
-    union {
-        int interval_3_arg;
-    } argument;
-    char *result;
-    xdrproc_t _xdr_argument, _xdr_result;
-    char *(*local)(char *, struct svc_req *);
 
-    switch (rqstp->rq_proc) {
-        case NULLPROC:
-            (void) svc_sendreply (transp, (xdrproc_t) xdr_void, (char *)NULL);
-            return;
-
-        case START:
-
-            _xdr_argument = (xdrproc_t) xdr_void;
-            _xdr_result = (xdrproc_t) xdr_int;
-            local = (char *(*)(char *, struct svc_req *)) start_3_svc;
-            break;
-
-        case STOP:
-            _xdr_argument = (xdrproc_t) xdr_void;
-            _xdr_result = (xdrproc_t) xdr_int;
-            local = (char *(*)(char *, struct svc_req *)) stop_3_svc;
-            break;
-
-        default:
-            svcerr_noproc (transp);
-            return;
-    }
-    memset ((char *)&argument, 0, sizeof (argument));
-    if (!svc_getargs (transp, (xdrproc_t) _xdr_argument, (caddr_t) &argument)) {
-        svcerr_decode (transp);
-        return;
-    }
-    result = (*local)((char *)&argument, rqstp);
-    if (result != NULL && !svc_sendreply(transp, (xdrproc_t) _xdr_result, result)) {
-        svcerr_systemerr (transp);
-    }
-    if (!svc_freeargs (transp, (xdrproc_t) _xdr_argument, (caddr_t) &argument)) {
-        fprintf (stderr, "%s", "unable to free arguments");
-        exit (1);
-    }
-    return;
-}
  /*
 /*****************************************************************************/
 /**                                  Main                                   **/
@@ -286,60 +200,6 @@ int main(int argc, char **argv) {
 
 
     }
-
-
-
-    /*TODO DELETE
-    int result;
-    pthread_t streamingThread;
-    result = pthread_create(&streamingThread,
-                            NULL,
-                            streamingThreadFunction,
-                            (void*)(&parserContext));
-    if(result){
-        PARSER_DBG("Failed to create CLI thread\n");
-        return PARSER_ERROR;
-    }
-     */
-    print_header(&parserContext.serverInfo);
-    //rpc_mainn();
-
-    /*
-     * This part of main function is copied from main() method in pci_sniff.c file, after running rpcgen, that generates
-     * the pci_sniff_svc source file. Should be later replaced with gRPC library
-     *
-     */
-
-    /* TODO DELETE
-    register SVCXPRT *transp;
-
-    pmap_unset (PCISNIFF, PCISNIFF_V2);
-
-    transp = svcudp_create(RPC_ANYSOCK);
-    if (transp == NULL) {
-        fprintf (stderr, "%s", "cannot create udp service.");
-        exit(1);
-    }
-    if (!svc_register(transp, PCISNIFF, PCISNIFF_V2, pcisniff_3, IPPROTO_UDP)) {
-        fprintf (stderr, "%s", "unable to register (PCISNIFF, PCISNIFF_V2, udp).");
-        exit(1);
-    }
-
-    transp = svctcp_create(RPC_ANYSOCK, 0, 0);
-    if (transp == NULL) {
-        fprintf (stderr, "%s", "cannot create tcp service.");
-        exit(1);
-    }
-    if (!svc_register(transp, PCISNIFF, PCISNIFF_V2, pcisniff_3, IPPROTO_TCP)) {
-        fprintf (stderr, "%s", "unable to register (PCISNIFF, PCISNIFF_V2, tcp).");
-        exit(1);
-    }
-
-    svc_run ();
-    fprintf (stderr, "%s", "svc_run returned");
-    exit (1);
-     NOTREACHED */
-
 
 
 }
