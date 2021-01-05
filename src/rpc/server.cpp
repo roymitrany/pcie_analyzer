@@ -33,6 +33,7 @@
 using namespace std;
 
 int flag =0;
+uint32_t filter[ADDRESS_LENGTH_BYTE];
 
 
 /*****************************************************************************/
@@ -73,7 +74,6 @@ void printCurrPacket(uint32_t packet_size_bytes, const uint8_t* packet){
 
 
 bool pcie_filter(parserContext_t* context){
-    uint32_t filter[ADDRESS_LENGTH_BYTE]={0x02,0x00,0x0c,0x64};
     for (int i = 0; i < ADDRESS_LENGTH_BYTE; i++) {
         if((uint32_t) ((context->packetMetadata.data[i+ADDRESS_START_BYTE]) & 0xff)!=filter[i]) {
             return false;
@@ -141,6 +141,8 @@ static int sendPacket(parserContext_t* context){
                MSG_CONFIRM, (const struct sockaddr *) &servaddr,
                sizeof(servaddr));
     }
+
+
     //printf("Tusov message sent.\n");
 
     close(sockfd);
@@ -181,6 +183,31 @@ static int init_packet_stream(parserContext_t* context){
  */
 
 
+
+int char2int(char input)
+{
+    if(input >= '0' && input <= '9')
+        return input - '0';
+    if(input >= 'A' && input <= 'F')
+        return input - 'A' + 10;
+    if(input >= 'a' && input <= 'f')
+        return input - 'a' + 10;
+    throw std::invalid_argument("Invalid input string");
+}
+
+// This function assumes src to be a zero terminated sanitized string with
+// an even number of [0-9a-f] characters, and target to be sufficiently large
+void hex2bin(const char* src, char* target)
+{
+    while(*src && src[1])
+    {
+        *(target++) = char2int(*src)*16 + char2int(src[1]);
+        src += 2;
+    }
+}
+
+
+
  /*
 /*****************************************************************************/
 /**                                  Main                                   **/
@@ -191,6 +218,22 @@ int main(int argc, char **argv) {
 
     init_packet_stream(&parserContext);
 
+    printf("pcie filter1 is :  %s\n",argv[1]);
+    //printf("pcie filter2 is :  %02x", argv[1]);
+    //printf("pcie filter2 is :  %08lx", argv[1]);
+
+    char target[ADDRESS_LENGTH_BYTE]={0};
+    hex2bin(argv[1], target);
+
+
+    for (int i = 0; i < ADDRESS_LENGTH_BYTE; i++) {
+        PARSER_PACKET_PRINT("%02x ", (uint32_t) ((target[i]) & 0xff));
+        filter[i] =  (uint32_t) ((target[i]) & 0xff);
+    }
+                printf("\n");
+
+
+    sleep(1);
 
     while (1){
 
