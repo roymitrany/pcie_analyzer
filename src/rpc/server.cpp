@@ -4,7 +4,6 @@
 /*****************************************************************************/
 /**                              Includes                                   **/
 /*****************************************************************************/
-#include "pci_sniff.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <rpc/pmap_clnt.h>
@@ -27,15 +26,17 @@
 
 
 
+
 /*****************************************************************************/
 /**                                Namespace                                **/
 /*****************************************************************************/
 using namespace std;
-
+char* client_ip;
 int flag =0;
+bool trigger_flag=false;
+bool filter_flag=false;
 uint32_t filter[ADDRESS_LENGTH_BYTE];
-
-
+uint32_t trigger[ADDRESS_LENGTH_BYTE];
 /*****************************************************************************/
 /**                            Static variables                             **/
 /*****************************************************************************/
@@ -74,6 +75,11 @@ void printCurrPacket(uint32_t packet_size_bytes, const uint8_t* packet){
 
 
 bool pcie_filter(parserContext_t* context){
+
+    if(filter_flag){
+       return true;
+    }
+
     for (int i = 0; i < ADDRESS_LENGTH_BYTE; i++) {
         if((uint32_t) ((context->packetMetadata.data[i+ADDRESS_START_BYTE]) & 0xff)!=filter[i]) {
             return false;
@@ -81,6 +87,19 @@ bool pcie_filter(parserContext_t* context){
 
     }
     return true;
+}
+
+
+
+void pcie_trigger(parserContext_t* context){
+    for (int i = 0; i < ADDRESS_LENGTH_BYTE; i++) {
+        if((uint32_t) ((context->packetMetadata.data[i+ADDRESS_START_BYTE]) & 0xff)!=trigger[i]) {
+            return;
+        }
+
+    }
+    trigger_flag=true;
+
 }
 
 /**
@@ -106,8 +125,7 @@ static int sendPacket(parserContext_t* context){
     }
 
     int sockfd;
-    //char buffer[MAXLINE];
-    //char *hello = "Hello from client";
+
     struct sockaddr_in     servaddr;
     //char str[INET_ADDRSTRLEN];
 
@@ -126,7 +144,7 @@ static int sendPacket(parserContext_t* context){
     servaddr.sin_port = htons(21212);
     //servaddr.sin_addr.s_addr = INADDR_ANY;
     // store this IP address in sa:
-    inet_pton(AF_INET, "192.168.0.2", &(servaddr.sin_addr));
+    inet_pton(AF_INET, client_ip, &(servaddr.sin_addr));
 
     int n, len;
 
@@ -135,13 +153,17 @@ static int sendPacket(parserContext_t* context){
         flag++;
     }
 
-
-    if(pcie_filter(context)) {
-        sendto(sockfd, (const char *) &(context->packetMetadata), context->stream->getCurrPacketSizeBytes(),
-               MSG_CONFIRM, (const struct sockaddr *) &servaddr,
-               sizeof(servaddr));
+    if(!trigger_flag){
+        pcie_trigger(context);
     }
 
+    if(trigger_flag) {
+        if (pcie_filter(context)) {
+            sendto(sockfd, (const char *) &(context->packetMetadata), context->stream->getCurrPacketSizeBytes(),
+                   MSG_CONFIRM, (const struct sockaddr *) &servaddr,
+                   sizeof(servaddr));
+        }
+    }
 
     //printf("Tusov message sent.\n");
 
@@ -176,16 +198,9 @@ static int init_packet_stream(parserContext_t* context){
 
 
 
-/*
- * This method is copies as is from pci_sniff_svc.c. If we keep the file there, it does not compile due to c/c++ issues
- * Needs to be re-copied if we run rpcgen again.
- * The core will be later replaced with gRPC library, hopefully with better results.
- */
 
 
-
-int char2int(char input)
-{
+int char2int(char input) {
     if(input >= '0' && input <= '9')
         return input - '0';
     if(input >= 'A' && input <= 'F')
@@ -213,24 +228,46 @@ void hex2bin(const char* src, char* target)
 /**                                  Main                                   **/
 /*****************************************************************************/
 int main(int argc, char **argv) {
+    client_ip = argv[2];
     memset(&parserContext, 0, sizeof(parserContext_t));
 
 
     init_packet_stream(&parserContext);
 
     printf("pcie filter1 is :  %s\n",argv[1]);
-    //printf("pcie filter2 is :  %02x", argv[1]);
-    //printf("pcie filter2 is :  %08lx", argv[1]);
+    printf("pcie trigger is :  %s\n",argv[3]);
+    printf("ip address is :  %s\n",argv[2]);
 
-    char target[ADDRESS_LENGTH_BYTE]={0};
-    hex2bin(argv[1], target);
+    if(argv[1]!= (string)"empty") {
+        char target1[ADDRESS_LENGTH_BYTE] = {0};
+        hex2bin(argv[1], target1);
 
+        for (int i = 0; i < ADDRESS_LENGTH_BYTE; i++) {
+            PARSER_PACKET_PRINT("%02x ", (uint32_t) ((target1[i]) & 0xff));
+            filter[i] =  (uint32_t) ((target1[i]) & 0xff);
 
-    for (int i = 0; i < ADDRESS_LENGTH_BYTE; i++) {
-        PARSER_PACKET_PRINT("%02x ", (uint32_t) ((target[i]) & 0xff));
-        filter[i] =  (uint32_t) ((target[i]) & 0xff);
+        }
+        printf("\n");
+
+    }else{
+        filter_flag=true;
     }
-                printf("\n");
+
+    if(argv[3]!= (string)"empty") {
+        printf("trigger is not empty\n");
+        char target3[ADDRESS_LENGTH_BYTE] = {0};
+        hex2bin(argv[3], target3);
+
+        for (int i = 0; i < ADDRESS_LENGTH_BYTE; i++) {
+
+            PARSER_PACKET_PRINT("%02x ", (uint32_t) ((target3[i]) & 0xff));
+            trigger[i]=(uint32_t) ((target3[i]) & 0xff);
+        }
+        printf("\n");
+
+    }else{
+        trigger_flag=true;
+    }
 
 
     sleep(1);
