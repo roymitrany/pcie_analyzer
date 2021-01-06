@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Iterate VOVIT Packets 
+while read line; do
+
+# Print Only Data From Each VOVIT Packet 	
+vov=`echo $line | cut -d' ' -f7`
+echo $vov 
+	
+done < ./Gen1_VOVIT_Packets.txt

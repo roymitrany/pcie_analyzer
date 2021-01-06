@@ -1,0 +1,21 @@
+#!/bin/bash
+
+echo >> ./Gen1_VOVIT_Packets.txt
+
+
+./Read_Link_Table > Read_Link_Table_Out
+./Read_VOVIT_Data >Read_VOVIT_Data_Out
+
+
+echo "Read_Link_Table_Out is:"
+cat ./Read_Link_Table_Out
+
+echo "Read_VOVIT_Data_Out is:"
+cat ./Read_VOVIT_Data_Out
+
+
+./dos2unix Read_Link_Table_Out Read_VOVIT_Data_Out
+
+echo "Executing diff"
+diff Read_Link_Table_Out Read_VOVIT_Data_Out
+

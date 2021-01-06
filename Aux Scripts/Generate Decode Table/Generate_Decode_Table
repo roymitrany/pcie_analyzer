@@ -1,0 +1,23 @@
+#!/bin/bash
+
+while read line; do
+
+	# search for line containing the current 10bit symbol
+	Containing_Line=`grep "$line" ./Orig_Symbols_Table`
+	
+	# grep found a line
+	if [[ $? == 0 ]]; then
+		# get the suitable 8bit symbol 
+		eight_bit_symbol=`echo "$Containing_Line" | cut -d',' -f2`
+		
+		# get symbol letter 
+		symbol_letter=`echo "$Containing_Line" | cut -d',' -f1 | cut -d'[' -f2 `
+	else
+		eight_bit_symbol=None
+		symbol_letter=None
+	fi
+	
+	# printing decode table
+	echo "[ $line , $eight_bit_symbol , $symbol_letter ] ," >> Decode_Table
+	
+done < ./10bit_Symbols

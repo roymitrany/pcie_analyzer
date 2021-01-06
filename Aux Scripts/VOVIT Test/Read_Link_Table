@@ -1,0 +1,136 @@
+#!/bin/bash
+
+((count=5))
+((line_num=0))
+((eight_counter=8))
+((last_symbol=9))
+((vovit=0))
+
+while read line; do
+	
+	((line_num++))
+	if (( line_num < count )); then
+		
+		continue
+	fi
+	
+	one=`echo $line | cut -d' ' -f'2' ` 
+	if [[ $one == *"+"* ]] ; then
+		break
+	fi
+	
+	two=`echo $line | cut -d' ' -f'4' ` 
+	three=`echo $line | cut -d' ' -f'6' ` 
+	four=`echo $line | cut -d' ' -f'8' ` 
+	five=`echo $line | cut -d' ' -f'10' ` 
+	six=`echo $line | cut -d' ' -f'12' ` 
+	seven=`echo $line | cut -d' ' -f'14' ` 
+	eight=`echo $line | cut -d' ' -f'16' ` 
+	
+	((count+=3))
+	
+	if [[ $one == "|" ]]; then
+		((last_symbol=9))
+		#echo 1
+		break
+	fi
+	
+	if [[ $two == "|" ]]; then
+		((last_symbol=2))
+		#echo 2
+		break
+	fi
+	
+	if [[ $three == "|" ]]; then
+		((last_symbol=3))
+		#echo 3
+		break
+	fi
+	
+	if [[ $four == "|" ]]; then
+		((last_symbol=4))
+		#echo 4
+		break
+	fi
+	
+	if [[ $five == "|" ]]; then
+		((last_symbol=5))
+		#echo 5
+		break
+	fi
+	
+	if [[ $six == "|" ]]; then
+		((last_symbol=6))
+		#echo 6
+		break
+	fi
+	
+	if [[ $seven == "|" ]]; then
+		((last_symbol=7))
+		#echo 7
+		break
+	fi
+	
+	if [[ $eight == "|" ]]; then
+		((last_symbol=8))
+		#echo 8
+		break
+	fi
+	
+	
+	printf '%02x%02x%02x%02x%02x%02x%02x%02x' $((2#$one)) $((2#$two)) $((2#$three)) $((2#$four)) $((2#$five)) $((2#$six)) $((2#$seven)) $((2#$eight))
+	((vovit+=8))
+	((eight_counter--))
+	if (( eight_counter == 0 )); then
+		printf '\n'
+		((eight_counter=8))
+	fi
+	
+	
+done < ./Gen1_Link_Table.txt
+
+
+if (( $last_symbol != 9 )); then
+	
+	if (($last_symbol == 1)); then
+		break
+	fi
+	if (($last_symbol > 1)); then
+		printf '%02x' $((2#$one))
+	fi
+	if (($last_symbol > 2)); then
+		printf '%02x' $((2#$two))
+	fi
+	if (($last_symbol > 3)); then
+		printf '%02x' $((2#$three))
+	fi
+	if (($last_symbol > 4)); then
+		printf '%02x' $((2#$four))
+	fi
+	if (($last_symbol > 5)); then
+		printf '%02x' $((2#$five))
+	fi
+	if (($last_symbol > 6)); then
+		printf '%02x' $((2#$six))
+	fi
+	if (($last_symbol > 7)); then
+		printf '%02x' $((2#$seven))
+	fi
+	
+	while (( $last_symbol != 9 )); do
+
+		((last_symbol++))
+		printf '00'
+	done
+	((vovit+=8))
+		
+fi
+
+
+while (( ((vovit % 64)) != 0 )); do
+	
+	printf '0000000000000000' 
+	((vovit+=8))
+done
+echo
+
