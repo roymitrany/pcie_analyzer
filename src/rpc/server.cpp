@@ -18,7 +18,7 @@
 #include <infiniband/verbs.h>
 #include <rpc/rpc.h>
 #include "../parser/include/Exeptions.h"
-#include "common.h"
+#include "server.h"
 
 #define ADDRESS_START_BYTE 12
 
