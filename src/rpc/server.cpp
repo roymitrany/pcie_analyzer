@@ -48,14 +48,7 @@ int rpc_res;
 /*****************************************************************************/
 /**                            Static functions                             **/
 /*****************************************************************************/
-static void print_header(serverInfo_t* serverInfo){
-    if(NULL == serverInfo){
-        return;
-    }
-    print_header_common();
-    PARSER_PRINT("Starting in server mode\n");
-    PARSER_PRINT("Port:%s\n", serverInfo->port);
-}
+
 
 /**
  * Packet print utility
@@ -109,7 +102,7 @@ void pcie_trigger(parserContext_t* context){
  */
 static int sendPacket(parserContext_t* context){
     int result;
-    PARSER_DBG("Sending new packet\n");
+
 
     try {
         context->stream->OnNext();
@@ -120,7 +113,6 @@ static int sendPacket(parserContext_t* context){
         //printCurrPacket(context->stream->getCurrPacketSizeBytes(),
         //                context->stream->getCurrPacket());
     }catch (LogicPacketStreamInvlidSpeedException& e){
-        PARSER_DBG("Failed in stream get packet\n");
         return PARSER_ERROR;
     }
 

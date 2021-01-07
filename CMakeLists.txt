@@ -16,25 +16,15 @@ target_include_directories(parser
         src/parser/include
         )
 
-add_library(common STATIC
-        src/rpc/common.cpp
-        )
-add_library(my_rpc STATIC
-        src/rpc/pci_sniff_clnt.c
-        )
-link_libraries (pthread common parser my_rpc)
+
+link_libraries (parser)
 add_executable(server
         src/rpc/server.cpp)
 target_include_directories(server
         PUBLIC
         src/parser/include
         )
-add_executable(client
-        src/rpc/client.cpp)
-target_include_directories(client
-        PUBLIC
-        src/parser/include
-        )
+
 
 
 
