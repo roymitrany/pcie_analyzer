@@ -144,7 +144,7 @@ static int sendPacket(parserContext_t* context){
         printCurrPacket( context->stream->getCurrPacketSizeBytes(),(const uint8_t*)&(context->packetMetadata.data)  );
         flag++;
     }
-
+    
     if(!trigger_flag){
         pcie_trigger(context);
     }
