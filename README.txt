@@ -16,7 +16,7 @@ server side:
  
  3. run wireshark and choose "PCIe interface 1 for extcap: if1"
  4. optional: choose Filter and Trigger
- 5. run.
+ 5. press start.
 
 
 
