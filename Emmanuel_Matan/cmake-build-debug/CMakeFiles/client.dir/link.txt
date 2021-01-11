@@ -1,1 +1,0 @@
-/usr/bin/c++  -g   CMakeFiles/client.dir/src/rpc/client.cpp.o  -o client -lpthread libcommon.a libparser.a libmy_rpc.a 
