@@ -1,0 +1,4 @@
+/home/user/tusov/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/user/tusov/cmake-build-debug/CMakeFiles/parser.dir
+/home/user/tusov/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/user/tusov/cmake-build-debug/CMakeFiles/server.dir
