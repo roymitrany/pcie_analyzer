@@ -1,2 +1,0 @@
-/usr/bin/ar qc libparser.a  CMakeFiles/parser.dir/src/parser/src/LogicChunk.cpp.o CMakeFiles/parser.dir/src/parser/src/LogicPacketsStream.cpp.o CMakeFiles/parser.dir/src/parser/src/structs.cpp.o CMakeFiles/parser.dir/src/parser/src/token.cpp.o CMakeFiles/parser.dir/src/parser/src/VovitChunk.cpp.o
-/usr/bin/ranlib libparser.a
