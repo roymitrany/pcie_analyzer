@@ -27,6 +27,8 @@
 
 
 
+
+
 /*****************************************************************************/
 /**                                Namespace                                **/
 /*****************************************************************************/
@@ -35,8 +37,18 @@ char* client_ip;
 int flag =0;
 bool trigger_flag=false;
 bool filter_flag=false;
+bool trigger_changed=false;
+int packet_num=0;
 uint32_t filter[ADDRESS_LENGTH_BYTE];
 uint32_t trigger[ADDRESS_LENGTH_BYTE];
+
+
+parserData_t* data_before_trigger;
+uint32_t* data_size_before_trigger;
+int last_index=0;
+
+
+
 /*****************************************************************************/
 /**                            Static variables                             **/
 /*****************************************************************************/
@@ -44,7 +56,7 @@ uint32_t trigger[ADDRESS_LENGTH_BYTE];
  * Main parser context instance
  */
 static parserContext_t parserContext;
-int rpc_res;
+
 /*****************************************************************************/
 /**                            Static functions                             **/
 /*****************************************************************************/
@@ -67,6 +79,17 @@ void printCurrPacket(uint32_t packet_size_bytes, const uint8_t* packet){
 }
 
 
+void left_shift(){
+
+
+        for (int i = 1; i < packet_num; i++){
+            data_before_trigger[i - 1] = data_before_trigger[i];
+            data_size_before_trigger[i - 1] = data_size_before_trigger[i];
+        }
+
+
+}
+
 bool pcie_filter(parserContext_t* context){
 
     if(filter_flag){
@@ -85,12 +108,14 @@ bool pcie_filter(parserContext_t* context){
 
 
 void pcie_trigger(parserContext_t* context){
+    if(trigger_flag) return;
     for (int i = 0; i < ADDRESS_LENGTH_BYTE; i++) {
         if((uint32_t) ((context->packetMetadata.data[i+ADDRESS_START_BYTE]) & 0xff)!=trigger[i]) {
             return;
         }
 
     }
+    trigger_changed=true;
     trigger_flag=true;
 
 }
@@ -138,22 +163,54 @@ static int sendPacket(parserContext_t* context){
     // store this IP address in sa:
     inet_pton(AF_INET, client_ip, &(servaddr.sin_addr));
 
-    int n, len;
 
+/*
     if(flag<10){
         printCurrPacket( context->stream->getCurrPacketSizeBytes(),(const uint8_t*)&(context->packetMetadata.data)  );
         flag++;
     }
-    
-    if(!trigger_flag){
-        pcie_trigger(context);
+    */
+
+    pcie_trigger(context);
+
+    if(!trigger_flag and packet_num>0 and pcie_filter(context) ){
+
+        if(last_index==packet_num){
+            left_shift();
+            memcpy(&data_before_trigger[last_index-1],&(context->packetMetadata), sizeof(parserData_t));
+            data_size_before_trigger[last_index-1] = context->stream->getCurrPacketSizeBytes();
+
+        }else{
+            memcpy(&data_before_trigger[last_index],&(context->packetMetadata), sizeof(parserData_t));
+            data_size_before_trigger[last_index] = context->stream->getCurrPacketSizeBytes();
+            last_index++;
+
+        }
+
+
     }
 
-    if(trigger_flag) {
+    if(trigger_flag ) {
+        if(trigger_changed and packet_num>0){
+
+            for(int i=0; i<packet_num;i++){
+                if(data_size_before_trigger[i]>0){
+                    printf("index: %d",i);
+                    sendto(sockfd, (const char *) &(data_before_trigger[i]), context->stream->getCurrPacketSizeBytes(),
+                           MSG_CONFIRM, (const struct sockaddr *) &servaddr,
+                           sizeof(servaddr));
+
+
+
+                }
+            }
+
+            trigger_changed=false;
+        }
         if (pcie_filter(context)) {
-            sendto(sockfd, (const char *) &(context->packetMetadata), context->stream->getCurrPacketSizeBytes(),
-                   MSG_CONFIRM, (const struct sockaddr *) &servaddr,
-                   sizeof(servaddr));
+           sendto(sockfd, (const char *) &(context->packetMetadata), context->stream->getCurrPacketSizeBytes(),
+                  MSG_CONFIRM, (const struct sockaddr *) &servaddr,
+                  sizeof(servaddr));
         }
     }
 
@@ -223,44 +280,47 @@ int main(int argc, char **argv) {
     client_ip = argv[2];
     memset(&parserContext, 0, sizeof(parserContext_t));
 
-
     init_packet_stream(&parserContext);
-
-    printf("pcie filter1 is :  %s\n",argv[1]);
-    printf("pcie trigger is :  %s\n",argv[3]);
-    printf("ip address is :  %s\n",argv[2]);
 
     if(argv[1]!= (string)"empty") {
         char target1[ADDRESS_LENGTH_BYTE] = {0};
         hex2bin(argv[1], target1);
 
         for (int i = 0; i < ADDRESS_LENGTH_BYTE; i++) {
-            PARSER_PACKET_PRINT("%02x ", (uint32_t) ((target1[i]) & 0xff));
             filter[i] =  (uint32_t) ((target1[i]) & 0xff);
 
         }
-        printf("\n");
+
 
     }else{
         filter_flag=true;
     }
 
     if(argv[3]!= (string)"empty") {
-        printf("trigger is not empty\n");
+
         char target3[ADDRESS_LENGTH_BYTE] = {0};
         hex2bin(argv[3], target3);
 
         for (int i = 0; i < ADDRESS_LENGTH_BYTE; i++) {
-
-            PARSER_PACKET_PRINT("%02x ", (uint32_t) ((target3[i]) & 0xff));
             trigger[i]=(uint32_t) ((target3[i]) & 0xff);
         }
-        printf("\n");
+
 
     }else{
         trigger_flag=true;
     }
+    if(stoi(argv[4])>0){
 
+        packet_num=stoi(argv[4]);
+        data_before_trigger=(parserData_t*) malloc(sizeof(*data_before_trigger)*packet_num);
+        data_size_before_trigger=(uint32_t*) malloc(sizeof(*data_size_before_trigger)*packet_num);
+
+        for(int i=0; i<packet_num; i++){
+            data_size_before_trigger[i]=0;
+        }
+       
+
+    }
 
     sleep(1);
 
