@@ -37,6 +37,10 @@ logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import *
 from threading import Thread
 import xmlrpc.client
+import socket
+
+UDP_IP = "192.168.0.2"
+UDP_PORT = 21212
 
 ERROR_USAGE          = 0
 ERROR_ARG            = 1
@@ -112,13 +116,13 @@ def extcap_config(interface, option):
     values = []
     multi_values = []
 
-    #args.append((0, '--delay', 'Time delay', 'Time delay between packages', 'integer', '{range=1,15}{default=5}'))
+
     args.append((0, '--ts', 'Start Time', 'Capture start time', 'timestamp', '{group=Time / Log}'))
-   # args.append((1, '--run_another_script', 'Run SERVER', 'Running another executable', 'boolflag', '{default=no}'))
     args.append((1, '--pcie_filter', 'PCIe Filter', 'Package filter content', 'string', '{required=false}{placeholder=Please enter a filter here ...}'))
     args.append((2, '--pcie_trigger', 'PCIe Trigger', 'Package filter content', 'string', '{required=false}{placeholder=Please enter a trigger here ...}'))
+    args.append((3, '--packet_number', '#Packet Before Trigger', 'Package #Packet Before Trigger', 'string',  ' {default=0}{required=false}{placeholder=Please enter a Packet Number Before Trigger here ...}'))
 
-    args.append((3, '--client_ip', 'Client IP Address', 'Use this ip address as client', 'string',
+    args.append((4, '--client_ip', 'Client IP Address', 'Use this ip address as client', 'string',
                  '{default=192.168.0.2}{required=false}{placeholder=Please enter a trigger here ...}{save=false}{validation=\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b}'))
     if len(option) <= 0:
         for arg in args:
@@ -159,15 +163,7 @@ def validate_capture_filter(capture_filter):
     if capture_filter != "filter" and capture_filter != "valid":
         print("Illegal capture filter")
 
-"""
-### FAKE DATA GENERATOR
-Extcap capture routine
- This routine simulates a capture by any kind of user defined device. The parameters
- are user specified and must be handled by the extcap.
- The data captured inside this routine is fake, so change this routine to present
- your own input data, or call your own capture program via Popen for example. See
- for more details.
-"""
+
 def unsigned(n):
     return int(n) & 0xFFFFFFFF
 
@@ -200,7 +196,6 @@ def pcap_package(packet):
 
 
     pcap += struct.pack('<L', unsigned(sec))  # timestamp seconds
-    #pcap += struct.pack('<L', 0x00)  # timestamp microseconds
     pcap += struct.pack('<L', unsigned(usec))  # timestamp microseconds
     pcap += struct.pack('<L', unsigned(caplength))  # length captured
     pcap += struct.pack('<L', unsigned(caplength))  # length in frame
@@ -226,16 +221,14 @@ def control_read(fn):
 
 
 
-def control_read_thread(control_in, fn_out,filter1,client_ip,pcie_trigger):
+def control_read_thread(control_in, fn_out,filter1,client_ip,pcie_trigger,packet_number):
     global initialized, delay, button, button_disabled
-   # hostname = socket.gethostname()
-    #local_ip = socket.gethostbyname(hostname)
+
     proxy = xmlrpc.client.ServerProxy("http://192.168.0.1:8080/")
-    proxy.start_server(filter1,client_ip,pcie_trigger)
+    proxy.start_server(filter1,client_ip,pcie_trigger,packet_number)
     with open(control_in, 'rb', 0) as fn:
         arg = 0
-        #proxy = xmlrpc.client.ServerProxy("http://192.168.0.1:8080/")
-        #proxy.start_server(filter_pcie)    
+
         while arg is not None:
             arg, typ, payload = control_read(fn)
             log = ''
@@ -284,33 +277,20 @@ def control_write_defaults(fn_out):
 
     control_write(fn_out, CTRL_ARG_DELAY, CTRL_CMD_REMOVE, str(60))
     
-    
-    
-    
 
-
-  
 def insert_packet(packet):
     # upload packet, using passed arguments
     #fifo_handler.write(pcap_package(raw(packet))) 
     fifo_handler.write(pcap_package(bytes(packet))) 
     
-    
-    
-    
-    
 
-def extcap_capture(interface, fifo, control_in, control_out, remote,pcie_filter,client_ip,pcie_trigger):
+def extcap_capture(interface, fifo, control_in, control_out, remote,pcie_filter,client_ip,pcie_trigger,packet_number):
     
     global   button_disabled ,fifo_handler
-    #delay = in_delay if in_delay != 0 else 5
+
     counter = 1
     fn_out = None
-       
 
- 
-   
-    
     with open(fifo, 'wb', 0) as fh:
         fh.write(global_pcap_header())
         fifo_handler=fh
@@ -319,28 +299,17 @@ def extcap_capture(interface, fifo, control_in, control_out, remote,pcie_filter,
             fn_out = open(control_out, 'wb', 0)
             control_write(fn_out, CTRL_ARG_LOGGER, CTRL_CMD_SET, "Log started at " + time.strftime("%c") + "\n")
 
-        #thread1 = Thread(target=startserver, args=(pcie_filter))
-        #thread1.start()
-
         if control_in is not None:
             # Start reading thread
 
-            thread = Thread(target=control_read_thread, args=(control_in, fn_out,pcie_filter,client_ip,pcie_trigger))
+            thread = Thread(target=control_read_thread, args=(control_in, fn_out,pcie_filter,client_ip,pcie_trigger,packet_number))
             thread.start()
 
         if fn_out is not None:
             control_write_defaults(fn_out)
-        
-        #proxy = xmlrpc.client.ServerProxy("http://192.168.0.1:8080/")
-       # proxy.start_server(pcie_filter) 
-        sniff(iface="enp0s8",filter="ip dst 192.168.0.2 and port 21212",prn=insert_packet)
-	
-       
-        
-        #sniff(iface="enp0s8",prn=insert_packet)
-        #sniff(prn=insert_packet)
-       
-       
+
+        sniff(iface="enp0s8",filter=f"ip dst {client_ip} and port 21212",prn=insert_packet)
+
         while True:
             if fn_out is not None:
                 log = "Received packet #" + str(counter) + "\n"
@@ -354,11 +323,7 @@ def extcap_capture(interface, fifo, control_in, control_out, remote,pcie_filter,
          
             
          
-            #a=sniff(iface="enp5s0",filter="ip dst 132.68.60.170",count=1)
-            #for p in a:
-             #   fh.write(pcap_fake_package(raw(p))) 
-                
-            #time.sleep(delay)
+
 
     thread.join()
     if fn_out is not None:
@@ -379,10 +344,10 @@ if __name__ == '__main__':
     option = ""
 
     # Capture options
-    #delay = 0
     pcie_filter = ""
     pcie_trigger = ""
     client_ip = ""
+    packet_number=""
    
     ts = 0
 
@@ -405,14 +370,11 @@ if __name__ == '__main__':
     parser.add_argument("--extcap-reload-option", help="Reload elements for the given option")
 
     # Interface Arguments
-  
- 
-   # parser.add_argument("--delay", help="Demonstrates an integer variable", type=int, default=0, choices=[0, 1, 2, 3, 4, 5, 6] )
     parser.add_argument("--ts", help="Capture start time", action="store_true" )
-    #parser.add_argument("--run_another_script", help="Running another executable", action="store_true" )
-    parser.add_argument("--pcie_filter", help="Demonstrates string variable", nargs='?', default="" )
-    parser.add_argument("--pcie_trigger", help="Demonstrates string variable", nargs='?', default="" )
+    parser.add_argument("--pcie_filter", help="pcie filter", nargs='?', default="" )
+    parser.add_argument("--pcie_trigger", help="pcie trigger", nargs='?', default="" )
     parser.add_argument("--client_ip", help="Add a client IP address", nargs='?', default="192.168.0.2")
+    parser.add_argument("--packet_number", help="number of packet before trigger", nargs='?', default="0")
 
     try:
         args, unknown = parser.parse_known_args()
@@ -467,12 +429,9 @@ if __name__ == '__main__':
     if args.pcie_trigger is None or len(args.pcie_trigger) == 0:
         pcie_trigger = "empty"
 
-    #proxy = xmlrpc.client.ServerProxy("http://192.168.0.1:8080/")
-    
-    #if args.run_another_script:
-        
-        #os.system("sudo /home/user/temp/TEMP2/PROG")
-       # proxy.start_server()
+    packet_number = args.packet_number
+    if args.packet_number is None or len(args.packet_number) == 0 or args.packet_number <= "0":
+        packet_number = "0"
 
     
 
@@ -486,24 +445,13 @@ if __name__ == '__main__':
     elif args.capture:
     
 
-         
-
-
-        #thread1 = Thread(target=startserver, args=(pcie_filter))
-        #thread1.start()
-        #proxy = xmlrpc.client.ServerProxy("http://192.168.0.1:8080/")
-        #proxy.start_server(pcie_filter)
 
         if args.fifo is None:
             sys.exit(ERROR_FIFO)
         # The following code demonstrates error management with extcap
-       # if args.delay > 5:
-       #    print("Value for delay [%d] too high" % args.delay, file=sys.stderr)
-       #   extcap_close_fifo(args.fifo)
-       #  sys.exit(ERROR_DELAY)
 
         try:
-            extcap_capture(interface, args.fifo, args.extcap_control_in, args.extcap_control_out, "if1",pcie_filter,client_ip,pcie_trigger)
+            extcap_capture(interface, args.fifo, args.extcap_control_in, args.extcap_control_out, "if1",pcie_filter,client_ip,pcie_trigger,packet_number)
         except KeyboardInterrupt:
             pass
     else:
