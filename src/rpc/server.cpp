@@ -163,14 +163,6 @@ static int sendPacket(parserContext_t* context){
     // store this IP address in sa:
     inet_pton(AF_INET, client_ip, &(servaddr.sin_addr));
 
-
-/*
-    if(flag<10){
-        printCurrPacket( context->stream->getCurrPacketSizeBytes(),(const uint8_t*)&(context->packetMetadata.data)  );
-        flag++;
-    }
-    */
-
     pcie_trigger(context);
 
     if(!trigger_flag and packet_num>0 and pcie_filter(context) ){
