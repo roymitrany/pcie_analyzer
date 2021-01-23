@@ -192,7 +192,6 @@ static int sendPacket(parserContext_t* context){
                            sizeof(servaddr));
                 }
             }
-
             trigger_changed=false;
         }
         if (pcie_filter(context)) {
