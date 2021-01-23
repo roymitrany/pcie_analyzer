@@ -187,7 +187,6 @@ static int sendPacket(parserContext_t* context){
 
             for(int i=0; i<packet_num;i++){
                 if(data_size_before_trigger[i]>0){
-                    printf("index: %d",i);
                     sendto(sockfd, (const char *) &(data_before_trigger[i]), context->stream->getCurrPacketSizeBytes(),
                            MSG_CONFIRM, (const struct sockaddr *) &servaddr,
                            sizeof(servaddr));
