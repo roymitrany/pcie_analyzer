@@ -190,9 +190,6 @@ static int sendPacket(parserContext_t* context){
                     sendto(sockfd, (const char *) &(data_before_trigger[i]), context->stream->getCurrPacketSizeBytes(),
                            MSG_CONFIRM, (const struct sockaddr *) &servaddr,
                            sizeof(servaddr));
-
-
-
                 }
             }
 
